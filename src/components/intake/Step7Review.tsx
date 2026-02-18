@@ -7,8 +7,22 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { step7Schema, type Step7Data } from '@/lib/validations/intake'
 import { useWizard } from './WizardContext'
 import { submitLead } from '@/actions/submitLead'
-import { createClient } from '@/lib/supabase/client'
 import type { IntakeFormData } from '@/types'
+
+type FileInfo = {
+  original_filename: string
+  storage_path: string
+  mime_type: string
+  size_bytes: number
+  file_type: string
+}
+
+/** Holds the result of a partial upload failure so the user can decide. */
+type PartialUploadState = {
+  fileInfos: FileInfo[]        // successfully uploaded
+  failedNames: string[]        // names of files that failed
+  payload: Omit<IntakeFormData, 'files'>
+}
 
 function ReviewRow({ label, value }: { label: string; value?: string | number | boolean | null }) {
   if (value === undefined || value === null || value === '') return null
@@ -26,6 +40,7 @@ export function Step7Review() {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [partialUpload, setPartialUpload] = useState<PartialUploadState | null>(null)
 
   const {
     register,
@@ -39,57 +54,61 @@ export function Step7Review() {
     },
   })
 
-  const onSubmit = async (values: Step7Data) => {
+  /** Upload a single file through the server-side API route (uses service role key). */
+  const uploadFile = async (file: File): Promise<FileInfo> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch('/api/upload', { method: 'POST', body: fd })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`)
+    return json as FileInfo
+  }
+
+  /** Call the submitLead server action and redirect on success. */
+  const doSubmitLead = async (
+    payload: Omit<IntakeFormData, 'files'>,
+    fileInfos: FileInfo[]
+  ) => {
     setSubmitting(true)
     setSubmitError('')
-
     try {
-      // Upload files to Supabase storage
-      const supabase = createClient()
-      const fileInfos: Array<{
-        original_filename: string
-        storage_path: string
-        mime_type: string
-        size_bytes: number
-        file_type: string
-      }> = []
-
-      const files = data.files ?? []
-      const uploadFailures: string[] = []
-
-      for (const file of files) {
-        const ext = file.name.split('.').pop()
-        const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-        const { error: uploadError } = await supabase.storage
-          .from('lead-files')
-          .upload(path, file, { contentType: file.type })
-
-        if (uploadError) {
-          console.error('Upload error for', file.name, uploadError)
-          uploadFailures.push(file.name)
-          continue
-        }
-
-        fileInfos.push({
-          original_filename: file.name,
-          storage_path: path,
-          mime_type: file.type,
-          size_bytes: file.size,
-          file_type: ext ?? 'unknown',
-        })
-      }
-
-      if (uploadFailures.length > 0) {
-        setSubmitError(
-          `העלאת הקבצים הבאים נכשלה: ${uploadFailures.join(', ')}. ` +
-            'ניתן להמשיך בלעדיהם או לנסות שוב.'
-        )
+      const result = await submitLead(payload, fileInfos)
+      if (!result.success) {
+        setSubmitError(result.error ?? 'אירעה שגיאה, נסו שוב.')
         setSubmitting(false)
         return
       }
+      router.push(`/thank-you?ref=${result.leadId?.slice(0, 8).toUpperCase()}`)
+    } catch (e) {
+      console.error(e)
+      setSubmitError('אירעה שגיאה בלתי צפויה. נסו שוב.')
+      setSubmitting(false)
+    }
+  }
 
-      // Submit lead via server action
-      const formPayload: Omit<IntakeFormData, 'files'> = {
+  const onSubmit = async (values: Step7Data) => {
+    setSubmitting(true)
+    setSubmitError('')
+    setPartialUpload(null)
+
+    try {
+      // Upload all files in parallel via the server-side route.
+      // Using the service role key server-side means no anon RLS policy is needed.
+      const files = data.files ?? []
+      const results = await Promise.allSettled(files.map(uploadFile))
+
+      const fileInfos: FileInfo[] = []
+      const failedNames: string[] = []
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+          fileInfos.push(r.value)
+        } else {
+          console.error('[Step7] Upload failed for', files[i]?.name, r.reason)
+          failedNames.push(files[i]?.name ?? `קובץ ${i + 1}`)
+        }
+      })
+
+      const payload: Omit<IntakeFormData, 'files'> = {
         full_name: data.full_name!,
         phone: data.phone!,
         email: data.email!,
@@ -116,15 +135,14 @@ export function Step7Review() {
         marketing_source: values.marketing_source ?? '',
       }
 
-      const result = await submitLead(formPayload, fileInfos)
-
-      if (!result.success) {
-        setSubmitError(result.error ?? 'אירעה שגיאה, נסו שוב.')
+      if (failedNames.length > 0) {
+        // Pause: show the user which files failed and let them decide.
+        setPartialUpload({ fileInfos, failedNames, payload })
         setSubmitting(false)
         return
       }
 
-      router.push(`/thank-you?ref=${result.leadId?.slice(0, 8).toUpperCase()}`)
+      await doSubmitLead(payload, fileInfos)
     } catch (e) {
       console.error(e)
       setSubmitError('אירעה שגיאה בלתי צפויה. נסו שוב.')
@@ -132,6 +150,62 @@ export function Step7Review() {
     }
   }
 
+  // ── Partial-upload failure screen ──────────────────────────────────────────
+  if (partialUpload) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 mb-1">שגיאה בהעלאת קבצים</h2>
+          <p className="text-sm text-gray-500">
+            חלק מהקבצים לא הועלו בהצלחה. תוכלו להמשיך ללא הקבצים שנכשלו, או לחזור ולנסות שנית.
+          </p>
+        </div>
+
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 space-y-2">
+          <p className="text-sm font-semibold text-yellow-800">הקבצים הבאים לא הועלו:</p>
+          <ul className="list-disc list-inside space-y-1">
+            {partialUpload.failedNames.map((name) => (
+              <li key={name} className="text-sm text-yellow-700 font-mono truncate">
+                {name}
+              </li>
+            ))}
+          </ul>
+          {partialUpload.fileInfos.length > 0 && (
+            <p className="text-xs text-yellow-700 pt-1">
+              {partialUpload.fileInfos.length} קבצים הועלו בהצלחה ויישמרו.
+            </p>
+          )}
+        </div>
+
+        {submitError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-600 text-sm">
+            {submitError}
+          </div>
+        )}
+
+        <div className="flex gap-3 pt-1">
+          <button
+            type="button"
+            onClick={() => { setPartialUpload(null); setSubmitError('') }}
+            className="btn-secondary flex-1"
+            disabled={submitting}
+          >
+            → חזור לטופס
+          </button>
+          <button
+            type="button"
+            onClick={() => doSubmitLead(partialUpload.payload, partialUpload.fileInfos)}
+            className="btn-primary flex-1"
+            disabled={submitting}
+          >
+            {submitting ? 'שולח...' : 'המשך ללא הקבצים שנכשלו ←'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Normal review form ─────────────────────────────────────────────────────
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div>
@@ -210,7 +284,7 @@ export function Step7Review() {
           → חזור
         </button>
         <button type="submit" className="btn-primary flex-1" disabled={submitting}>
-          {submitting ? 'שולח...' : 'שלח את הבקשה ←'}
+          {submitting ? 'מעלה קבצים ושולח...' : 'שלח את הבקשה ←'}
         </button>
       </div>
     </form>

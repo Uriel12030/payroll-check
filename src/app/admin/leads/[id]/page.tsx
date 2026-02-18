@@ -9,12 +9,6 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   return { title: `פנייה ${params.id.slice(0, 8).toUpperCase()} – Admin` }
 }
 
-const statusLabels: Record<string, string> = {
-  new: 'חדש',
-  reviewing: 'בבדיקה',
-  accepted: 'מקובל',
-  rejected: 'נדחה',
-}
 
 export default async function LeadDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()

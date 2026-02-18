@@ -41,25 +41,26 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Protect /admin/* routes — but NEVER redirect /admin/login to itself.
-  // /admin/login and /admin/logout must be excluded from this guard to avoid
-  // ERR_TOO_MANY_REDIRECTS.
+  // Pages always reachable without a session — never redirect away from these.
+  // /admin/login  → server component handles 3 states: no-session / non-admin / admin
+  // /admin/forbidden → shown to authenticated-but-not-admin users
   const isAdminLoginPage = pathname === '/admin/login'
+  const isAdminForbiddenPage = pathname === '/admin/forbidden'
   const isAdminRoute = pathname.startsWith('/admin')
 
-  if (isAdminRoute && !isAdminLoginPage && !user) {
-    console.log(`[middleware] Unauthenticated access to ${pathname} → redirecting to /admin/login`)
+  // Only redirect unauthenticated users away from protected admin routes.
+  if (isAdminRoute && !isAdminLoginPage && !isAdminForbiddenPage && !user) {
+    console.log(`[middleware] No session for ${pathname} → /admin/login`)
     const url = request.nextUrl.clone()
     url.pathname = '/admin/login'
     return NextResponse.redirect(url)
   }
 
-  // Redirect already-authenticated users away from the login page
-  if (isAdminLoginPage && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin/leads'
-    return NextResponse.redirect(url)
-  }
+  // NOTE: Do NOT redirect authenticated users away from /admin/login here.
+  // The login page is a server component that checks session + admin status
+  // and handles all three cases: admin → /admin/leads, non-admin → show error,
+  // no session → show form. A middleware redirect here would bypass that logic
+  // and recreate the loop for non-admin users.
 
   return supabaseResponse
 }

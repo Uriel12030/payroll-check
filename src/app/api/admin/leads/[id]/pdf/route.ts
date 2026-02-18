@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { isAdmin } from '@/lib/auth/isAdmin'
 import type { Lead } from '@/types'
 
 export async function GET(
@@ -8,13 +9,13 @@ export async function GET(
 ) {
   const supabase = createClient()
 
-  // Verify admin session
+  // Verify admin session and allowlist
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    return new NextResponse('Unauthorized', { status: 401 })
+  if (!user || !isAdmin(user.email)) {
+    return new NextResponse('Forbidden', { status: 403 })
   }
 
   const { data: lead, error } = await supabase

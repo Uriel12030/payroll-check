@@ -55,6 +55,8 @@ export function Step7Review() {
       }> = []
 
       const files = data.files ?? []
+      const uploadFailures: string[] = []
+
       for (const file of files) {
         const ext = file.name.split('.').pop()
         const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
@@ -63,8 +65,8 @@ export function Step7Review() {
           .upload(path, file, { contentType: file.type })
 
         if (uploadError) {
-          console.error('Upload error:', uploadError)
-          // Continue without this file
+          console.error('Upload error for', file.name, uploadError)
+          uploadFailures.push(file.name)
           continue
         }
 
@@ -75,6 +77,15 @@ export function Step7Review() {
           size_bytes: file.size,
           file_type: ext ?? 'unknown',
         })
+      }
+
+      if (uploadFailures.length > 0) {
+        setSubmitError(
+          `העלאת הקבצים הבאים נכשלה: ${uploadFailures.join(', ')}. ` +
+            'ניתן להמשיך בלעדיהם או לנסות שוב.'
+        )
+        setSubmitting(false)
+        return
       }
 
       // Submit lead via server action

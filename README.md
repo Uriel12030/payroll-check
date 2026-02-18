@@ -137,6 +137,20 @@ Recommended: schedule this as a weekly cron job or Supabase Edge Function.
 - Consent is required and validated before any data is stored
 - Admin routes are protected by middleware + layout-level auth checks
 
+## Vercel Environment Variables (Production)
+
+Set **all four** variables in Vercel **Project Settings → Environment Variables** (applies to Production, Preview, and Development environments as appropriate):
+
+| Variable | Required | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | From Supabase Dashboard → Settings → API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | From Supabase Dashboard → Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | **Server-only** — never exposed to the browser |
+| `ADMIN_ALLOWLIST_EMAILS` | Yes | Comma-separated admin emails, e.g. `admin@example.com` |
+
+> **Important:** If `ADMIN_ALLOWLIST_EMAILS` is missing or empty, no one will be able to access `/admin`.
+> Missing any of the Supabase variables causes a hard startup error (fail-fast) rather than a silent mismatch.
+
 ## Production Deployment
 
 1. Deploy to **Vercel** (recommended):
@@ -144,9 +158,23 @@ Recommended: schedule this as a weekly cron job or Supabase Edge Function.
    vercel deploy
    ```
 
-2. Set all environment variables in Vercel dashboard
+2. Set all environment variables in Vercel dashboard (see table above).
 
-3. Ensure `SUPABASE_SERVICE_ROLE_KEY` is **never** exposed to the client
+3. Ensure `SUPABASE_SERVICE_ROLE_KEY` is **never** exposed to the client.
+
+## How to verify in production
+
+After setting env vars and redeploying, run through this checklist:
+
+- [ ] **Set env vars in Vercel** – all four variables configured in Project Settings.
+- [ ] **Redeploy** – trigger a fresh deployment after setting variables (changes take effect on next deploy).
+- [ ] **Visit `/admin/login`** – should show the login form without redirect loops (`ERR_TOO_MANY_REDIRECTS` = env vars or middleware bug).
+- [ ] **Log in** with an email listed in `ADMIN_ALLOWLIST_EMAILS`.
+- [ ] **Confirm `/admin/leads` loads** – should show the lead list table.
+- [ ] **Confirm lead updates work** – change a lead's status; should persist without errors.
+- [ ] **Confirm file upload works** – submit a test intake form at `/intake` with an attachment; the file should appear in the lead detail view.
+- [ ] **Visit `/admin/health`** – should show Supabase URL (masked), session email, `isAdmin: true`, and DB connectivity confirmation.
+- [ ] **Non-allowlisted user** – log in with a non-admin Supabase user; should be redirected back to `/admin/login`.
 
 ---
 

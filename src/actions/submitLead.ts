@@ -68,7 +68,7 @@ export async function submitLead(
     .single()
 
   if (leadError) {
-    console.error('Lead insert error:', leadError)
+    console.error('Lead insert error:', leadError.code, leadError.message, leadError.details)
     return { success: false, error: 'שגיאה בשמירת הפרטים. נסו שוב.' }
   }
 

@@ -7,7 +7,8 @@ export const step1Schema = z.object({
   city: z.string().min(2, 'עיר מגורים חובה').max(100),
 })
 
-export const step2Schema = z.object({
+// Base object schema used for merging into fullIntakeSchema
+const step2BaseSchema = z.object({
   employer_name: z.string().min(2, 'שם המעסיק חובה').max(200),
   role_title: z.string().min(2, 'תפקיד חובה').max(200),
   employment_type: z.enum(['full_time', 'part_time', 'hourly', 'freelance', 'other'], {
@@ -20,7 +21,10 @@ export const step2Schema = z.object({
     .number({ message: 'יש להזין מספר' })
     .min(1, 'שכר חובה')
     .max(1000000),
-}).refine(
+})
+
+// Step 2 schema with end_date conditional refinement (used for per-step validation)
+export const step2Schema = step2BaseSchema.refine(
   (data) => {
     if (!data.still_employed && !data.end_date) return false
     return true
@@ -70,11 +74,15 @@ export const step7Schema = z.object({
 })
 
 export const fullIntakeSchema = step1Schema
-  .merge(step2Schema)
+  .merge(step2BaseSchema)
   .merge(step3Schema)
   .merge(step4Schema)
   .merge(step5Schema)
   .merge(step7Schema)
+  .refine(
+    (data) => data.still_employed || !!data.end_date,
+    { message: 'תאריך סיום עבודה חובה', path: ['end_date'] }
+  )
 
 export type Step1Data = z.infer<typeof step1Schema>
 export type Step2Data = z.infer<typeof step2Schema>

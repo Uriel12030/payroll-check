@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { verifyResendWebhook } from '@/lib/email/webhook'
 import { extractReplyToken } from '@/lib/email/resend'
 import { sanitizeEmailHtml } from '@/lib/email/sanitize'
+import { analyzeInboundEmail } from '@/lib/ai/aiAnalyzer'
 
 interface ResendInboundPayload {
   type: string
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Store inbound message
-  const { error: msgError } = await serviceClient
+  const { data: storedMsg, error: msgError } = await serviceClient
     .from('email_messages')
     .insert({
       conversation_id: conversationId,
@@ -162,6 +163,8 @@ export async function POST(request: NextRequest) {
       provider_message_id: message_id ?? null,
       headers: headersObj,
     })
+    .select('id')
+    .single()
 
   if (msgError) {
     console.error('[inbound/resend] Failed to store message:', msgError)
@@ -176,6 +179,26 @@ export async function POST(request: NextRequest) {
       status: 'pending',
     })
     .eq('id', conversationId)
+
+  // Trigger AI analysis (non-blocking: don't fail webhook if AI fails)
+  const { data: conv } = await serviceClient
+    .from('email_conversations')
+    .select('customer_id')
+    .eq('id', conversationId)
+    .single()
+
+  if (conv?.customer_id) {
+    try {
+      await analyzeInboundEmail({
+        leadId: conv.customer_id,
+        conversationId,
+        messageId: storedMsg?.id,
+        trigger: 'inbound_email',
+      })
+    } catch (aiErr) {
+      console.error('[inbound/resend] AI analysis failed (non-blocking):', aiErr)
+    }
+  }
 
   console.log('[inbound/resend] Stored inbound message for conversation:', conversationId)
   return NextResponse.json({ ok: true, matched: true, conversationId })

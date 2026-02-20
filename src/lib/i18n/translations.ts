@@ -361,6 +361,136 @@ const translations: Record<string, Record<Language, string>> = {
     ru: 'Только автоматическая проверка, не юридическая консультация. Ваши данные зашифрованы и защищены.',
     am: 'በኮምፒውተር የሚደረግ ምርመራ ብቻ፣ የሕግ ምክር አይደለም። ዝርዝሮችዎ የተመሰጠሩ እና ደህንነታቸው የተጠበቀ ነው።',
   },
+
+  // BasicContact step
+  'contact.title': {
+    he: 'פרטי קשר',
+    en: 'Contact details',
+    ru: 'Контактные данные',
+    am: 'የእውቂያ ዝርዝሮች',
+  },
+  'contact.subtitle': {
+    he: 'השאירו פרטים ונחזור אליכם בהקדם',
+    en: 'Leave your details and we will get back to you soon',
+    ru: 'Оставьте ваши данные, и мы свяжемся с вами в ближайшее время',
+    am: 'ዝርዝሮችዎን ይተዉ በቅርቡ እናገኝዎታለን',
+  },
+  'contact.first_name': {
+    he: 'שם פרטי',
+    en: 'First name',
+    ru: 'Имя',
+    am: 'ስም',
+  },
+  'contact.last_name': {
+    he: 'שם משפחה',
+    en: 'Last name',
+    ru: 'Фамилия',
+    am: 'የአባት ስም',
+  },
+  'contact.email': {
+    he: 'אימייל',
+    en: 'Email',
+    ru: 'Электронная почта',
+    am: 'ኢሜይል',
+  },
+  'contact.phone': {
+    he: 'טלפון',
+    en: 'Phone',
+    ru: 'Телефон',
+    am: 'ስልክ',
+  },
+  'contact.submit': {
+    he: 'שלחו את הפרטים',
+    en: 'Submit',
+    ru: 'Отправить',
+    am: 'ያስገቡ',
+  },
+  'contact.submitting': {
+    he: 'שולח...',
+    en: 'Submitting...',
+    ru: 'Отправка...',
+    am: 'በመላክ ላይ...',
+  },
+  'contact.error': {
+    he: 'אירעה שגיאה, נסו שוב.',
+    en: 'An error occurred, please try again.',
+    ru: 'Произошла ошибка, попробуйте снова.',
+    am: 'ስህተት ተከስቷል፣ እንደገና ይሞክሩ።',
+  },
+  'contact.first_name_required': {
+    he: 'שם פרטי חובה',
+    en: 'First name is required',
+    ru: 'Имя обязательно',
+    am: 'ስም ያስፈልጋል',
+  },
+  'contact.last_name_required': {
+    he: 'שם משפחה חובה',
+    en: 'Last name is required',
+    ru: 'Фамилия обязательна',
+    am: 'የአባት ስም ያስፈልጋል',
+  },
+  'contact.email_invalid': {
+    he: 'כתובת אימייל לא תקינה',
+    en: 'Invalid email address',
+    ru: 'Неверный адрес электронной почты',
+    am: 'ልክ ያልሆነ ኢሜይል አድራሻ',
+  },
+  'contact.phone_invalid': {
+    he: 'מספר טלפון לא תקין',
+    en: 'Invalid phone number',
+    ru: 'Неверный номер телефона',
+    am: 'ልክ ያልሆነ ስልክ ቁጥር',
+  },
+  'contact.placeholder_first': {
+    he: 'ישראל',
+    en: 'John',
+    ru: 'Иван',
+    am: 'አበበ',
+  },
+  'contact.placeholder_last': {
+    he: 'ישראלי',
+    en: 'Doe',
+    ru: 'Иванов',
+    am: 'ከበደ',
+  },
+  'contact.placeholder_phone': {
+    he: '0501234567',
+    en: '0501234567',
+    ru: '0501234567',
+    am: '0501234567',
+  },
+
+  // Inline Thank You
+  'thankyou.title': {
+    he: 'הפרטים התקבלו!',
+    en: 'Details received!',
+    ru: 'Данные получены!',
+    am: 'ዝርዝሮች ተቀብለናል!',
+  },
+  'thankyou.message': {
+    he: 'קיבלנו את הפרטים שלך ונחזור אליך תוך 48 שעות עבודה עם הערכה ראשונית.',
+    en: 'We received your details and will get back to you within 48 business hours with an initial assessment.',
+    ru: 'Мы получили ваши данные и свяжемся с вами в течение 48 рабочих часов с первоначальной оценкой.',
+    am: 'ዝርዝሮችዎን ተቀብለናል በ48 የሥራ ሰዓታት ውስጥ የመጀመሪያ ግምገማ ይመለስልዎታል።',
+  },
+  'thankyou.ref': {
+    he: 'מספר פנייה',
+    en: 'Reference number',
+    ru: 'Номер обращения',
+    am: 'የማጣቀሻ ቁጥር',
+  },
+  'thankyou.disclaimer': {
+    he: 'הבדיקה המוצגת היא ממוחשבת בלבד ואינה מהווה ייעוץ משפטי. פנייה לייעוץ מחייבת שיחה עם עורך הדין.',
+    en: 'This is an automated check only, not legal advice. A consultation requires speaking with a lawyer.',
+    ru: 'Это только автоматическая проверка, не юридическая консультация. Для консультации необходимо поговорить с адвокатом.',
+    am: 'ይህ በኮምፒውተር የሚደረግ ምርመራ ብቻ ነው፣ የሕግ ምክር አይደለም። ምክክር ከጠበቃ ጋር ማውራት ያስፈልጋል።',
+  },
+  'thankyou.home': {
+    he: 'חזרה לעמוד הבית',
+    en: 'Back to home',
+    ru: 'На главную',
+    am: 'ወደ መነሻ ገጽ ተመለስ',
+  },
 }
 
 export function t(key: string, lang: Language, vars?: Record<string, string>): string {

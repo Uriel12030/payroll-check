@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { IntakeWizard } from '@/components/intake/IntakeWizard'
 import { QuickStart, QuickStartData } from '@/components/intake/QuickStart'
+import { BasicContact } from '@/components/intake/BasicContact'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { t } from '@/lib/i18n/translations'
@@ -12,13 +12,11 @@ import { createQuickLead } from '@/actions/createQuickLead'
 export default function IntakePage() {
   const { lang } = useLanguage()
   const router = useRouter()
-  const [phase, setPhase] = useState<'quick' | 'full'>('quick')
-  const [quickData, setQuickData] = useState<QuickStartData | null>(null)
+  const [phase, setPhase] = useState<'quick' | 'contact'>('quick')
   const [leadId, setLeadId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   const handleQuickComplete = async (data: QuickStartData) => {
-    setQuickData(data)
     setSaving(true)
     try {
       const result = await createQuickLead({
@@ -34,7 +32,7 @@ export default function IntakePage() {
       console.error('Quick lead error:', err)
     } finally {
       setSaving(false)
-      setPhase('full')
+      setPhase('contact')
     }
   }
 
@@ -64,7 +62,14 @@ export default function IntakePage() {
           {phase === 'quick' && saving && (
             <div className="text-center text-sm text-gray-500 mt-4">...</div>
           )}
-          {phase === 'full' && <IntakeWizard leadId={leadId} quickData={quickData} />}
+          {phase === 'contact' && leadId && (
+            <BasicContact leadId={leadId} />
+          )}
+          {phase === 'contact' && !leadId && (
+            <div className="text-center text-sm text-red-500 py-8">
+              {t('contact.error', lang)}
+            </div>
+          )}
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">

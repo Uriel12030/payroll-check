@@ -27,13 +27,18 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // After the guard above, these are guaranteed to be defined
+  const apiKey = RESEND_API_KEY as string
+  const from = EMAIL_FROM as string
+  const to = TEST_EMAIL_TO as string
+
   const timestamp = new Date().toISOString()
 
   try {
-    const resend = new Resend(RESEND_API_KEY)
+    const resend = new Resend(apiKey)
     const { data, error } = await resend.emails.send({
-      from: EMAIL_FROM,
-      to: [TEST_EMAIL_TO],
+      from: from,
+      to: [to],
       subject: 'MVP Email Test',
       html: `<strong>MVP test email</strong><br/>Timestamp: ${timestamp}`,
     })
@@ -45,13 +50,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[debug/email] sent', { to: TEST_EMAIL_TO, messageId: data?.id })
+    console.log('[debug/email] sent', { to, messageId: data?.id })
 
     return NextResponse.json({
       ok: true,
       provider: 'resend',
-      from: EMAIL_FROM,
-      to: TEST_EMAIL_TO,
+      from,
+      to,
       messageId: data?.id ?? null,
       timestamp,
     })

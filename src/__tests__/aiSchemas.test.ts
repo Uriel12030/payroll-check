@@ -17,12 +17,12 @@ describe('aiAnalysisOutputSchema', () => {
   })
 
   it('rejects missing case_summary', () => {
-    const { case_summary, ...rest } = validOutput
+    const { _case_summary, ...rest } = validOutput
     expect(() => aiAnalysisOutputSchema.parse(rest)).toThrow()
   })
 
   it('rejects missing suggested_reply_text', () => {
-    const { suggested_reply_text, ...rest } = validOutput
+    const { _suggested_reply_text, ...rest } = validOutput
     expect(() => aiAnalysisOutputSchema.parse(rest)).toThrow()
   })
 

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -19,7 +20,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl">
-      <body className="antialiased bg-gray-50 min-h-screen">{children}</body>
+      <body className="antialiased bg-gray-50 min-h-screen">
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   )
 }

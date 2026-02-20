@@ -16,11 +16,10 @@
     color: var(--foreground);
     background: var(--background);
     font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
-    direction: rtl;
   }
 
   input, select, textarea {
-    direction: rtl;
+    direction: inherit;
   }
 }
 

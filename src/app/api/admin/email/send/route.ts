@@ -111,6 +111,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to send email' }, { status: 502 })
     }
 
+    console.log('[email/send] success', {
+      to: lead.email,
+      from: fromAddress,
+      providerMessageId: sendResult?.id,
+    })
+
     // Store outbound message
     const { data: message, error: msgError } = await serviceClient
       .from('email_messages')

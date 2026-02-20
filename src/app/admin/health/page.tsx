@@ -64,6 +64,11 @@ export default async function HealthPage() {
   const serviceKeyPresent = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
   const allowlist = getAdminAllowlist()
   const adminOk = isAdmin(user.email)
+  const resendKeyPresent = Boolean(process.env.RESEND_API_KEY)
+  const emailFromPresent = Boolean(process.env.EMAIL_FROM)
+  const inboundDomainPresent = Boolean(process.env.EMAIL_INBOUND_DOMAIN)
+  const webhookSecretPresent = Boolean(process.env.RESEND_WEBHOOK_SECRET)
+
   const dbCheck = await checkDbConnectivity()
 
   return (
@@ -102,6 +107,30 @@ export default async function HealthPage() {
 
       <div className="card mb-6">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+          Email (Resend)
+        </h2>
+        <Row label="RESEND_API_KEY">
+          <Badge ok={resendKeyPresent} yes="present" no="MISSING" />
+        </Row>
+        <Row label="EMAIL_FROM">
+          <Badge ok={emailFromPresent} yes="present" no="MISSING" />
+          {emailFromPresent && (
+            <span className="ml-2 text-gray-500">{process.env.EMAIL_FROM}</span>
+          )}
+        </Row>
+        <Row label="EMAIL_INBOUND_DOMAIN">
+          <Badge ok={inboundDomainPresent} yes="present" no="MISSING" />
+          {inboundDomainPresent && (
+            <span className="ml-2 text-gray-500">{process.env.EMAIL_INBOUND_DOMAIN}</span>
+          )}
+        </Row>
+        <Row label="RESEND_WEBHOOK_SECRET">
+          <Badge ok={webhookSecretPresent} yes="present" no="MISSING" />
+        </Row>
+      </div>
+
+      <div className="card mb-6">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
           Session
         </h2>
         <Row label="Logged-in email">{user.email ?? '—'}</Row>
@@ -122,7 +151,7 @@ export default async function HealthPage() {
         </Row>
       </div>
 
-      {(!urlPresent || !anonKeyPresent || !serviceKeyPresent || allowlist.length === 0) && (
+      {(!urlPresent || !anonKeyPresent || !serviceKeyPresent || allowlist.length === 0 || !resendKeyPresent || !emailFromPresent || !inboundDomainPresent || !webhookSecretPresent) && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
           <strong>Action required:</strong> One or more environment variables are missing.
           Add them in Vercel → Project Settings → Environment Variables, then redeploy.

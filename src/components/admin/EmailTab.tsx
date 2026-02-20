@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Mail, Send, ArrowRight, MessageSquare, Clock, Inbox, ChevronLeft } from 'lucide-react'
 import type { EmailConversation, EmailMessage, ConversationStatus } from '@/types'
+import { AiPanel } from './AiPanel'
 
 interface Props {
   leadId: string
@@ -392,6 +393,9 @@ export function EmailTab({ leadId, leadEmail }: Props) {
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* AI Panel */}
+      <AiPanel leadId={leadId} conversationId={selectedConvId} />
 
       {/* Reply box */}
       <div className="border-t border-gray-100 pt-3">

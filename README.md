@@ -28,6 +28,7 @@ A production-ready legal lead intake and admin review system built with Next.js 
       /leads/[id]        → Lead detail view
     /api/admin/leads/[id]/pdf → PDF export
     /api/admin/email/send     → Send email to lead
+    /api/admin/ai/analyze     → Manual AI analysis trigger
     /api/email/inbound/resend → Inbound webhook (Resend)
   /components
     /intake              → Wizard step components + context
@@ -36,6 +37,7 @@ A production-ready legal lead intake and admin review system built with Next.js 
   /lib
     /supabase            → Client, server, middleware helpers
     /email               → Resend client, sanitization, webhook verification
+    /ai                  → AI analyzer, missing fields engine, prompt templates
     /validations         → Zod schemas for each wizard step
     /scoring.ts          → Lead scoring algorithm
     /utils.ts            → Utility functions
@@ -74,6 +76,7 @@ In the [Supabase Dashboard](https://app.supabase.com) → SQL Editor, run in ord
 1. `supabase/migrations/001_initial_schema.sql`
 2. `supabase/migrations/002_rls_policies.sql`
 3. `supabase/migrations/004_email_conversations.sql`
+4. `supabase/migrations/005_ai_assistant.sql`
 
 ### 4. Create Storage bucket
 
@@ -210,6 +213,88 @@ curl -X POST http://localhost:3000/api/email/inbound/resend \
 
 > **Note:** The above curl for inbound will fail signature verification in production. For real testing, use Resend's test mode or the Svix CLI to generate valid signatures.
 
+## AI Email Assistant
+
+An AI-powered assistant that analyzes inbound emails, tracks missing information, and drafts reply suggestions for admin approval.
+
+### How it works
+
+1. **Deterministic missing-fields detection**: Rule-based engine (`missingFieldsEngine.ts`) computes which required fields are still unknown, based on `case_ai_rules` configuration per case type. The LLM does NOT decide what's missing.
+
+2. **AI analysis** (OpenAI): When an inbound email arrives (or admin clicks "Regenerate"), the system:
+   - Loads the lead data, case rules, and conversation thread
+   - Sends a structured prompt to the model
+   - Validates the JSON output with Zod
+   - Extracts facts, updates the summary, and creates a draft reply
+
+3. **Admin approval required**: AI never auto-sends. It creates a "proposed" draft that the admin can review, edit, copy, or send with one click.
+
+4. **Full audit trail**: Every AI call is logged in `case_ai_actions` with input snapshot, model output, token usage, and timestamps.
+
+### Setup
+
+1. **Run migration** `005_ai_assistant.sql` in Supabase SQL Editor. This creates 4 tables and seeds case rules for common case types (פיטורים, התפטרות, אי תשלום שכר, שעות נוספות).
+
+2. **Enable Realtime** for AI tables:
+   ```sql
+   alter publication supabase_realtime add table case_ai_drafts;
+   alter publication supabase_realtime add table case_ai_state;
+   ```
+
+3. **Set environment variables**:
+   ```env
+   OPENAI_API_KEY=sk-xxxxxxxxxxxx
+   AI_MODEL=gpt-4.1-mini
+   ```
+
+### Case type rules
+
+Rules are stored in the `case_ai_rules` table. Each case type defines:
+- `required_fields`: Fields that must be collected, with Hebrew labels and questions
+- `optional_fields`: Nice-to-have information
+- `risk_rules`: Conditions that trigger risk flags
+
+Pre-seeded case types:
+
+| Case Type | Required Fields |
+|-----------|----------------|
+| פיטורים | 10 fields (dates, salary, hearing, severance, etc.) |
+| התפטרות | 9 fields (dates, salary, resignation reason, etc.) |
+| אי_תשלום_שכר | 8 fields (employer, unpaid months, contract, etc.) |
+| שעות_נוספות | 9 fields (hours, overtime pay, records, etc.) |
+| general | 6 fields (basic employment info) |
+
+### Testing AI analysis
+
+**Manual trigger** (requires admin session):
+```bash
+curl -X POST http://localhost:3000/api/admin/ai/analyze \
+  -H "Content-Type: application/json" \
+  -H "Cookie: <session-cookie>" \
+  -d '{
+    "leadId": "<lead-uuid>",
+    "conversationId": "<conversation-uuid>"
+  }'
+```
+
+### Architecture
+
+```
+Inbound email → Store message → AI Analyzer (non-blocking)
+                                   ↓
+                              Load lead + rules
+                                   ↓
+                         Deterministic: compute missing fields
+                                   ↓
+                              OpenAI API call (structured JSON)
+                                   ↓
+                              Zod validation
+                                   ↓
+                    Update: case_ai_state + case_ai_actions + case_ai_drafts
+                                   ↓
+                        Admin UI: AiPanel shows draft → admin clicks "Send"
+```
+
 ## Security
 
 - All writes use **service role** server actions (bypasses RLS safely server-side)
@@ -221,6 +306,10 @@ curl -X POST http://localhost:3000/api/email/inbound/resend \
 - Inbound email webhooks are verified using Svix signatures (Resend)
 - Inbound HTML is sanitized with `sanitize-html` before storage and rendering
 - Email tables have RLS policies restricted to authenticated (admin) users
+- AI never auto-sends emails; all drafts require explicit admin approval
+- AI audit log stores every model call with input/output for compliance
+- OpenAI API key is server-only; never exposed to the client
+- AI tables have RLS policies restricted to authenticated (admin) users
 
 ## Vercel Environment Variables (Production)
 
@@ -236,6 +325,8 @@ Set **all four** variables in Vercel **Project Settings → Environment Variable
 | `EMAIL_FROM` | For email | Verified sending address, e.g. `support@yourdomain.com` |
 | `EMAIL_INBOUND_DOMAIN` | For email | Inbound domain for reply routing |
 | `RESEND_WEBHOOK_SECRET` | For email | Webhook signing secret from Resend |
+| `OPENAI_API_KEY` | For AI | From OpenAI Dashboard → API Keys |
+| `AI_MODEL` | For AI | Model ID (default: `gpt-4.1-mini`) |
 
 > **Important:** If `ADMIN_ALLOWLIST_EMAILS` is missing or empty, no one will be able to access `/admin`.
 > Missing any of the Supabase variables causes a hard startup error (fail-fast) rather than a silent mismatch.

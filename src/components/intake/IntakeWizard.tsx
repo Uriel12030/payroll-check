@@ -9,6 +9,7 @@ import { Step4Benefits } from './Step4Benefits'
 import { Step5Termination } from './Step5Termination'
 import { Step6Files } from './Step6Files'
 import { Step7Review } from './Step7Review'
+import type { QuickStartData } from './QuickStart'
 
 const TOTAL_STEPS = 7
 
@@ -29,9 +30,14 @@ function WizardInner() {
   )
 }
 
-export function IntakeWizard() {
+interface IntakeWizardProps {
+  leadId?: string | null
+  quickData?: QuickStartData | null
+}
+
+export function IntakeWizard({ leadId, quickData }: IntakeWizardProps) {
   return (
-    <WizardProvider>
+    <WizardProvider leadId={leadId ?? null} quickData={quickData ?? null}>
       <WizardInner />
     </WizardProvider>
   )

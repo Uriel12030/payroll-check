@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from 'react'
 import type { IntakeFormData } from '@/types'
+import type { QuickStartData } from './QuickStart'
 
 interface WizardContextType {
   step: number
@@ -10,11 +11,19 @@ interface WizardContextType {
   updateData: (fields: Partial<IntakeFormData>) => void
   goNext: () => void
   goPrev: () => void
+  leadId: string | null
+  quickData: QuickStartData | null
 }
 
 const WizardContext = createContext<WizardContextType | null>(null)
 
-export function WizardProvider({ children }: { children: ReactNode }) {
+interface WizardProviderProps {
+  children: ReactNode
+  leadId: string | null
+  quickData: QuickStartData | null
+}
+
+export function WizardProvider({ children, leadId, quickData }: WizardProviderProps) {
   const [step, setStep] = useState(1)
   const [data, setData] = useState<Partial<IntakeFormData>>({
     still_employed: false,
@@ -30,7 +39,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const goPrev = () => setStep((s) => Math.max(s - 1, 1))
 
   return (
-    <WizardContext.Provider value={{ step, data, setStep, updateData, goNext, goPrev }}>
+    <WizardContext.Provider value={{ step, data, setStep, updateData, goNext, goPrev, leadId, quickData }}>
       {children}
     </WizardContext.Provider>
   )

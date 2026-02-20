@@ -31,6 +31,11 @@ export interface Lead {
   lead_score: number | null
   lead_flags: LeadFlags | null
   admin_notes: string | null
+  // Quick-start fields
+  preferred_language: string | null
+  years_with_employer_bucket: string | null
+  employment_type_quick: string | null
+  main_issues: string[] | null
 }
 
 export interface LeadFlags {

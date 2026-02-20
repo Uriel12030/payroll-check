@@ -36,7 +36,7 @@ function ReviewRow({ label, value }: { label: string; value?: string | number | 
 }
 
 export function Step7Review() {
-  const { data, goPrev } = useWizard()
+  const { data, goPrev, leadId } = useWizard()
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -72,7 +72,7 @@ export function Step7Review() {
     setSubmitting(true)
     setSubmitError('')
     try {
-      const result = await submitLead(payload, fileInfos)
+      const result = await submitLead(payload, fileInfos, leadId)
       if (!result.success) {
         setSubmitError(result.error ?? 'אירעה שגיאה, נסו שוב.')
         setSubmitting(false)

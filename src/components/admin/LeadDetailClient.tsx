@@ -3,9 +3,12 @@
 import { useState, useTransition } from 'react'
 import { updateLeadStatus, updateLeadNotes } from '@/actions/updateLead'
 import type { Lead, LeadFile, LeadStatus, LeadFlags } from '@/types'
-import { FileText, Download, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
+import { FileText, Download, CheckCircle, XCircle, Clock, AlertCircle, Mail } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { LeadPDFButton } from './LeadPDFButton'
+import { EmailTab } from './EmailTab'
+
+type TabKey = 'details' | 'emails'
 
 interface Props {
   lead: Lead
@@ -48,6 +51,7 @@ function ScoreBar({ score }: { score: number | null }) {
 }
 
 export function LeadDetailClient({ lead, files }: Props) {
+  const [activeTab, setActiveTab] = useState<TabKey>('details')
   const [status, setStatus] = useState<LeadStatus>(lead.status)
   const [notes, setNotes] = useState(lead.admin_notes ?? '')
   const [saving, setSaving] = useState(false)
@@ -131,6 +135,38 @@ export function LeadDetailClient({ lead, files }: Props) {
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('details')}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'details'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          פרטים
+        </button>
+        <button
+          onClick={() => setActiveTab('emails')}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+            activeTab === 'emails'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Mail className="w-4 h-4" />
+          אימיילים
+        </button>
+      </div>
+
+      {/* Tab: Emails */}
+      {activeTab === 'emails' && (
+        <EmailTab leadId={lead.id} leadEmail={lead.email} />
+      )}
+
+      {/* Tab: Details */}
+      {activeTab === 'details' && (
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Lead info */}
         <div className="space-y-6">
@@ -238,6 +274,7 @@ export function LeadDetailClient({ lead, files }: Props) {
           <LeadPDFButton lead={lead} />
         </div>
       </div>
+      )}
     </div>
   )
 }

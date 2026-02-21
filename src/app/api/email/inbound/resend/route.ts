@@ -82,9 +82,9 @@ export async function POST(request: NextRequest) {
   // Sanitize HTML body
   const sanitizedHtml = resolvedHtml ? sanitizeEmailHtml(resolvedHtml) : null
 
-  // Convert headers array to object
+  // Convert headers array to a case-insensitive lookup object (lowercase keys)
   const headersObj = headers
-        ? Object.fromEntries(headers.map((h) => [h.name, h.value]))
+        ? Object.fromEntries(headers.map((h) => [h.name.toLowerCase(), h.value]))
           : null
 
   // Collect all conversation IDs to store the message in
@@ -98,15 +98,15 @@ export async function POST(request: NextRequest) {
                       .from('email_conversations')
                       .select('id')
                       .eq('reply_token', token)
-                      .single()
+                      .maybeSingle()
                     if (conv) conversationIds.add(conv.id)
           }
   }
 
   // 2. Match by In-Reply-To / References headers
   if (headersObj) {
-          const inReplyTo = headersObj['In-Reply-To'] || headersObj['in-reply-to']
-          const references = headersObj['References'] || headersObj['references']
+          const inReplyTo = headersObj['in-reply-to']
+          const references = headersObj['references']
           const messageIds: string[] = []
                   if (inReplyTo) messageIds.push(inReplyTo.replace(/[<>]/g, ''))
           if (references) {
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
                       .select('conversation_id')
                       .eq('provider_message_id', mid)
                       .limit(1)
-                      .single()
+                      .maybeSingle()
                     if (msg) conversationIds.add(msg.conversation_id)
           }
   }
@@ -132,32 +132,39 @@ export async function POST(request: NextRequest) {
         .select('id')
         .eq('email', senderEmail)
         .limit(1)
-        .single()
+        .maybeSingle()
 
   if (lead) {
           if (conversationIds.size === 0) {
-                    // No existing conversation matched — create a new one
-            const { data: newConv } = await serviceClient
-                      .from('email_conversations')
-                      .insert({
-                                    customer_id: lead.id,
-                                    subject: subject || '(ללא נושא)',
-                                    status: 'open',
-                      })
-                      .select('id')
-                      .single()
-                    if (newConv) conversationIds.add(newConv.id)
-          } else {
-                    // Also add ALL other open/pending conversations for this lead
-            const { data: allConvs } = await serviceClient
+                    // No existing conversation matched by token or headers —
+                    // try to find the most recent open/pending conversation for this lead
+            const { data: recentConv } = await serviceClient
                       .from('email_conversations')
                       .select('id')
                       .eq('customer_id', lead.id)
                       .in('status', ['open', 'pending'])
-                    if (allConvs) {
-                                for (const c of allConvs) conversationIds.add(c.id)
+                      .order('last_message_at', { ascending: false })
+                      .limit(1)
+                      .maybeSingle()
+
+                    if (recentConv) {
+                      conversationIds.add(recentConv.id)
+                    } else {
+                      // No open conversation — create a new one
+                      const { data: newConv } = await serviceClient
+                        .from('email_conversations')
+                        .insert({
+                                      customer_id: lead.id,
+                                      subject: subject || '(ללא נושא)',
+                                      status: 'open',
+                        })
+                        .select('id')
+                        .single()
+                      if (newConv) conversationIds.add(newConv.id)
                     }
           }
+          // If conversationIds already has matches from token/headers, use only those —
+          // do NOT duplicate into other conversations
   }
 
   // If still no match, store unmatched

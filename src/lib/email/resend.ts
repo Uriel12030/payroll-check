@@ -28,9 +28,10 @@ export function buildReplyToAddress(replyToken: string): string {
 
 /**
  * Extract the reply token from a recipient address.
+ * Expects a 24-char hex token (gen_random_bytes(12)): reply+<token>@domain
  * Returns null if the address doesn't match the expected format.
  */
 export function extractReplyToken(address: string): string | null {
-  const match = address.match(/^reply\+([a-f0-9]+)@/i)
+  const match = address.match(/^reply\+([a-f0-9]{24})@/i)
   return match ? match[1] : null
 }

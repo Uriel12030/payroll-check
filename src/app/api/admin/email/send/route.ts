@@ -136,7 +136,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (msgError) {
+      // Email was sent but we failed to store the record — log and warn the client
       console.error('[email/send] Failed to store message:', msgError)
+      return NextResponse.json({
+        conversationId: convId,
+        messageId: null,
+        providerMessageId: sendResult?.id ?? null,
+        warning: 'Email sent but failed to store in database. Check logs.',
+      })
     }
 
     // Update conversation timestamp

@@ -17,13 +17,15 @@ describe('aiAnalysisOutputSchema', () => {
   })
 
   it('rejects missing case_summary', () => {
-    const { _case_summary, ...rest } = validOutput
-    expect(() => aiAnalysisOutputSchema.parse(rest)).toThrow()
+    const withoutSummary = { ...validOutput } as Record<string, unknown>
+    delete withoutSummary.case_summary
+    expect(() => aiAnalysisOutputSchema.parse(withoutSummary)).toThrow()
   })
 
   it('rejects missing suggested_reply_text', () => {
-    const { _suggested_reply_text, ...rest } = validOutput
-    expect(() => aiAnalysisOutputSchema.parse(rest)).toThrow()
+    const withoutReply = { ...validOutput } as Record<string, unknown>
+    delete withoutReply.suggested_reply_text
+    expect(() => aiAnalysisOutputSchema.parse(withoutReply)).toThrow()
   })
 
   it('accepts empty arrays for risk_flags and questions', () => {

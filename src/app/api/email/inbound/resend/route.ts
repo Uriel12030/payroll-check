@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
 
   // Store message in all matched conversations
   const storedConversationIds: string[] = []
-        for (const conversationId of conversationIds) {
+        for (const conversationId of Array.from(conversationIds)) {
                 const { error: msgError } = await serviceClient
                   .from('email_messages')
                   .insert({

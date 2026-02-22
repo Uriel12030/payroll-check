@@ -347,6 +347,12 @@ const translations: Record<string, Record<Language, string>> = {
     ru: 'Вопрос {current} из {total}',
     am: 'ጥያቄ {current} ከ {total}',
   },
+  'qs.retry': {
+    he: 'נסו שוב',
+    en: 'Try again',
+    ru: 'Попробовать снова',
+    am: 'እንደገና ሞክር',
+  },
 
   // Intake page
   'intake.subtitle': {

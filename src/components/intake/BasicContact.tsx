@@ -4,14 +4,15 @@ import { useState } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { t } from '@/lib/i18n/translations'
 import { FieldWrapper, Input } from '@/components/ui/FormField'
-import { updateLeadContact } from '@/actions/updateLeadContact'
+import { createQuickLead } from '@/actions/createQuickLead'
 import { CheckCircle } from 'lucide-react'
+import type { QuickStartData } from '@/components/intake/QuickStart'
 
 interface BasicContactProps {
-  leadId: string
+  quickData: QuickStartData
 }
 
-export function BasicContact({ leadId }: BasicContactProps) {
+export function BasicContact({ quickData }: BasicContactProps) {
   const { lang } = useLanguage()
 
   const [firstName, setFirstName] = useState('')
@@ -47,8 +48,11 @@ export function BasicContact({ leadId }: BasicContactProps) {
     setSubmitError('')
 
     try {
-      const result = await updateLeadContact({
-        leadId,
+      const result = await createQuickLead({
+        preferred_language: quickData.preferred_language,
+        years_with_employer_bucket: quickData.years_with_employer_bucket,
+        employment_type: quickData.employment_type,
+        main_issues: quickData.main_issues,
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         email: email.trim(),
@@ -59,7 +63,7 @@ export function BasicContact({ leadId }: BasicContactProps) {
         setSubmitting(false)
         return
       }
-      setRefCode(leadId.slice(0, 8).toUpperCase())
+      setRefCode(result.leadId!.slice(0, 8).toUpperCase())
       setDone(true)
     } catch {
       setSubmitError(t('contact.error', lang))

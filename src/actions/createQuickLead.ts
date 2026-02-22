@@ -49,9 +49,7 @@ export async function createQuickLead(input: QuickLeadInput): Promise<QuickLeadR
     console.error('Quick lead insert error:', error.code, error.message, error.details, error.hint)
     return {
       success: false,
-      error: process.env.NODE_ENV === 'development'
-        ? `DB error: ${error.message}`
-        : 'Failed to save data.',
+      error: `DB: ${error.message} (${error.code})`,
     }
   }
 

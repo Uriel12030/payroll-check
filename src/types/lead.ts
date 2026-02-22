@@ -40,13 +40,19 @@ export interface Lead {
 }
 
 export interface LeadFlags {
-  no_pension: boolean
-  unpaid_overtime: boolean
-  no_travel: boolean
-  vacation_issue: boolean
-  sick_days_issue: boolean
-  termination_flag: boolean
-  recent_employment: boolean
+  // Legacy scoring flags (full intake)
+  no_pension?: boolean
+  unpaid_overtime?: boolean
+  no_travel?: boolean
+  vacation_issue?: boolean
+  sick_days_issue?: boolean
+  termination_flag?: boolean
+  recent_employment?: boolean
+  // Quick-start fields
+  preferred_language?: string
+  years_with_employer_bucket?: string
+  employment_type_quick?: string
+  main_issues?: string[]
 }
 
 export interface LeadFile {

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   }
 
   const apiKey = RESEND_API_KEY as string
-    const from = EMAIL_FROM as string
+    const from = `Payroll Check <${EMAIL_FROM as string}>`
     const to = TEST_EMAIL_TO as string
     const replyTo = `reply+debugtest@${EMAIL_INBOUND_DOMAIN as string}`
     const timestamp = new Date().toISOString()

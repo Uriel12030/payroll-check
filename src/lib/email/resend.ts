@@ -11,7 +11,7 @@ export function getResendClient(): Resend {
 }
 
 export function getEmailFrom(): string {
-  return getRequiredEnv('EMAIL_FROM')
+  return `Payroll Check <${getRequiredEnv('EMAIL_FROM')}>`
 }
 
 export function getInboundDomain(): string {

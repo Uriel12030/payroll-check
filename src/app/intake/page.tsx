@@ -15,9 +15,13 @@ export default function IntakePage() {
   const [phase, setPhase] = useState<'quick' | 'contact'>('quick')
   const [leadId, setLeadId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [quickError, setQuickError] = useState('')
+  const [lastQuickData, setLastQuickData] = useState<QuickStartData | null>(null)
 
   const handleQuickComplete = async (data: QuickStartData) => {
     setSaving(true)
+    setQuickError('')
+    setLastQuickData(data)
     try {
       const result = await createQuickLead({
         preferred_language: data.preferred_language,
@@ -27,12 +31,15 @@ export default function IntakePage() {
       })
       if (result.success && result.leadId) {
         setLeadId(result.leadId)
+        setPhase('contact')
+      } else {
+        setQuickError(result.error ?? t('contact.error', lang))
       }
     } catch (err) {
       console.error('Quick lead error:', err)
+      setQuickError(t('contact.error', lang))
     } finally {
       setSaving(false)
-      setPhase('contact')
     }
   }
 
@@ -57,18 +64,27 @@ export default function IntakePage() {
 
         <div className="card">
           {phase === 'quick' && (
-            <QuickStart onComplete={handleQuickComplete} onBack={handleQuickBack} />
-          )}
-          {phase === 'quick' && saving && (
-            <div className="text-center text-sm text-gray-500 mt-4">...</div>
+            <>
+              <QuickStart onComplete={handleQuickComplete} onBack={handleQuickBack} />
+              {saving && (
+                <div className="text-center text-sm text-gray-500 mt-4">...</div>
+              )}
+              {quickError && !saving && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4 text-center">
+                  <p className="text-red-600 text-sm mb-3">{quickError}</p>
+                  <button
+                    type="button"
+                    className="btn-primary text-sm"
+                    onClick={() => lastQuickData && handleQuickComplete(lastQuickData)}
+                  >
+                    {t('qs.retry', lang)}
+                  </button>
+                </div>
+              )}
+            </>
           )}
           {phase === 'contact' && leadId && (
             <BasicContact leadId={leadId} />
-          )}
-          {phase === 'contact' && !leadId && (
-            <div className="text-center text-sm text-red-500 py-8">
-              {t('contact.error', lang)}
-            </div>
           )}
         </div>
 

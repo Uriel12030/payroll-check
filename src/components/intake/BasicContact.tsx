@@ -31,7 +31,9 @@ export function BasicContact({ leadId }: BasicContactProps) {
     if (!lastName.trim()) errs.last_name = t('contact.last_name_required', lang)
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       errs.email = t('contact.email_invalid', lang)
-    if (!phone.trim() || !/^0\d{8,9}$/.test(phone.replace(/[\s\-]/g, '')))
+    // Phone is optional – only validate format if provided
+    const cleaned = phone.replace(/[\s\-]/g, '')
+    if (cleaned && !/^0\d{8,9}$/.test(cleaned))
       errs.phone = t('contact.phone_invalid', lang)
     setErrors(errs)
     return Object.keys(errs).length === 0
@@ -129,7 +131,7 @@ export function BasicContact({ leadId }: BasicContactProps) {
         />
       </FieldWrapper>
 
-      <FieldWrapper label={t('contact.phone', lang)} error={errors.phone} required>
+      <FieldWrapper label={t('contact.phone', lang)} error={errors.phone}>
         <Input
           value={phone}
           onChange={(e) => setPhone(e.target.value)}

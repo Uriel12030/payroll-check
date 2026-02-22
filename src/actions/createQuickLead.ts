@@ -73,9 +73,11 @@ export async function createQuickLead(input: QuickLeadInput): Promise<QuickLeadR
     .select('id')
     .single()
 
-  // 42703 = undefined_column → migration 006 not applied yet.
+  // PGRST204 = column not found in schema cache (PostgREST)
+  // 42703   = undefined_column (PostgreSQL)
+  // Either means migration 006 not applied yet.
   // Retry with base schema only (quick-start data is in lead_flags).
-  if (error?.code === '42703') {
+  if (error?.code === 'PGRST204' || error?.code === '42703') {
     console.warn('Quick-start columns missing, retrying with base schema')
     ;({ data, error } = await supabase
       .from('leads')

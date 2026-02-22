@@ -46,6 +46,17 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
 
   const { data: leads = [] } = await query
 
+  // Fetch unread conversation counts per lead
+  const { data: unreadData = [] } = await supabase
+    .from('email_conversations')
+    .select('customer_id')
+    .eq('is_read', false)
+
+  const unreadMap = new Map<string, number>()
+  ;(unreadData ?? []).forEach((c: { customer_id: string }) => {
+    unreadMap.set(c.customer_id, (unreadMap.get(c.customer_id) || 0) + 1)
+  })
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -103,7 +114,9 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {(leads as Pick<Lead, 'id' | 'created_at' | 'last_interaction_at' | 'full_name' | 'email' | 'phone' | 'city' | 'status' | 'lead_score' | 'employer_name'>[]).map((lead) => (
+                {(leads as Pick<Lead, 'id' | 'created_at' | 'last_interaction_at' | 'full_name' | 'email' | 'phone' | 'city' | 'status' | 'lead_score' | 'employer_name'>[]).map((lead) => {
+                  const unreadCount = unreadMap.get(lead.id) || 0
+                  return (
                   <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900">{lead.full_name}</div>
@@ -144,15 +157,21 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
                         </Link>
                         <Link
                           href={`/admin/leads/${lead.id}?tab=emails`}
-                          className="text-gray-400 hover:text-blue-600 transition-colors"
+                          className="relative text-gray-400 hover:text-blue-600 transition-colors"
                           title="אימיילים"
                         >
                           <Mail className="w-4 h-4" />
+                          {unreadCount > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] font-bold leading-none">
+                              {unreadCount}
+                            </span>
+                          )}
                         </Link>
                       </div>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

@@ -7,6 +7,10 @@ export interface QuickLeadInput {
   years_with_employer_bucket: string
   employment_type: string
   main_issues: string[]
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
 }
 
 export interface QuickLeadResult {
@@ -24,9 +28,8 @@ export async function createQuickLead(input: QuickLeadInput): Promise<QuickLeadR
     return { success: false, error: 'Database configuration error.' }
   }
 
-  // Only send quick-start fields + status.
-  // All other lead fields are nullable (migration 006) and will be
-  // filled when the user completes the full intake or contact form.
+  const fullName = `${input.first_name} ${input.last_name}`.trim()
+
   const { data, error } = await supabase
     .from('leads')
     .insert({
@@ -34,6 +37,9 @@ export async function createQuickLead(input: QuickLeadInput): Promise<QuickLeadR
       years_with_employer_bucket: input.years_with_employer_bucket,
       employment_type_quick: input.employment_type,
       main_issues: input.main_issues,
+      full_name: fullName,
+      email: input.email,
+      phone: input.phone || null,
       status: 'new',
     })
     .select('id')
@@ -45,7 +51,7 @@ export async function createQuickLead(input: QuickLeadInput): Promise<QuickLeadR
       success: false,
       error: process.env.NODE_ENV === 'development'
         ? `DB error: ${error.message}`
-        : 'Failed to save quick start data.',
+        : 'Failed to save data.',
     }
   }
 

@@ -3,6 +3,7 @@ export type LeadStatus = 'new' | 'reviewing' | 'rejected' | 'accepted'
 export interface Lead {
   id: string
   created_at: string
+  last_interaction_at: string
   status: LeadStatus
   full_name: string
   phone: string

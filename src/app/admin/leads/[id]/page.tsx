@@ -10,7 +10,13 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 }
 
 
-export default async function LeadDetailPage({ params }: { params: { id: string } }) {
+export default async function LeadDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string }
+  searchParams: { tab?: string }
+}) {
   const supabase = createClient()
   const serviceClient = createServiceClient()
 
@@ -54,6 +60,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
       <LeadDetailClient
         lead={lead as Lead}
         files={filesWithUrls}
+        initialTab={searchParams.tab === 'emails' ? 'emails' : 'details'}
       />
     </div>
   )

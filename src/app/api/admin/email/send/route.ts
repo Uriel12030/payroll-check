@@ -152,6 +152,12 @@ export async function POST(request: NextRequest) {
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', convId)
 
+    // Update lead's last_interaction_at
+    await serviceClient
+      .from('leads')
+      .update({ last_interaction_at: new Date().toISOString() })
+      .eq('id', leadId)
+
     return NextResponse.json({
       conversationId: convId,
       messageId: message?.id ?? null,

@@ -13,6 +13,7 @@ type TabKey = 'details' | 'emails'
 interface Props {
   lead: Lead
   files: (LeadFile & { signedUrl: string | null })[]
+  initialTab?: TabKey
 }
 
 const statusConfig: Record<LeadStatus, { label: string; color: string; icon: React.ElementType }> = {
@@ -50,8 +51,8 @@ function ScoreBar({ score }: { score: number | null }) {
   )
 }
 
-export function LeadDetailClient({ lead, files }: Props) {
-  const [activeTab, setActiveTab] = useState<TabKey>('details')
+export function LeadDetailClient({ lead, files, initialTab = 'details' }: Props) {
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
   const [status, setStatus] = useState<LeadStatus>(lead.status)
   const [notes, setNotes] = useState(lead.admin_notes ?? '')
   const [saving, setSaving] = useState(false)

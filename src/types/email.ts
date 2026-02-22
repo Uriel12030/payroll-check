@@ -8,6 +8,7 @@ export interface EmailConversation {
   status: ConversationStatus
   reply_token: string
   last_message_at: string
+  is_read: boolean
   created_at: string
 }
 

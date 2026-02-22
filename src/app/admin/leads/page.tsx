@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { Mail } from 'lucide-react'
 import type { Lead } from '@/types'
 import type { Metadata } from 'next'
 
@@ -30,8 +31,8 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
 
   let query = supabase
     .from('leads')
-    .select('id, created_at, full_name, email, phone, city, status, lead_score, employer_name')
-    .order('created_at', { ascending: false })
+    .select('id, created_at, last_interaction_at, full_name, email, phone, city, status, lead_score, employer_name')
+    .order('last_interaction_at', { ascending: false })
 
   if (searchParams.status && searchParams.status !== 'all') {
     query = query.eq('status', searchParams.status)
@@ -97,12 +98,12 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
                   <th className="text-right px-4 py-3 font-medium text-gray-600 hidden md:table-cell">טלפון</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">ציון</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">סטטוס</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600 hidden lg:table-cell">תאריך</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600 hidden lg:table-cell">פעילות אחרונה</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {(leads as Pick<Lead, 'id' | 'created_at' | 'full_name' | 'email' | 'phone' | 'city' | 'status' | 'lead_score' | 'employer_name'>[]).map((lead) => (
+                {(leads as Pick<Lead, 'id' | 'created_at' | 'last_interaction_at' | 'full_name' | 'email' | 'phone' | 'city' | 'status' | 'lead_score' | 'employer_name'>[]).map((lead) => (
                   <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900">{lead.full_name}</div>
@@ -131,15 +132,24 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-400 hidden lg:table-cell text-xs">
-                      {new Date(lead.created_at).toLocaleDateString('he-IL')}
+                      {new Date(lead.last_interaction_at).toLocaleDateString('he-IL')}
                     </td>
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/admin/leads/${lead.id}`}
-                        className="text-blue-600 hover:text-blue-800 text-xs font-medium"
-                      >
-                        פתח
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/admin/leads/${lead.id}`}
+                          className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                        >
+                          פתח
+                        </Link>
+                        <Link
+                          href={`/admin/leads/${lead.id}?tab=emails`}
+                          className="text-gray-400 hover:text-blue-600 transition-colors"
+                          title="אימיילים"
+                        >
+                          <Mail className="w-4 h-4" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

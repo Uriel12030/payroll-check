@@ -165,13 +165,28 @@ export function EmailTab({ leadId, leadEmail }: Props) {
     }
   }
 
+  const handleSelectConversation = useCallback(async (convId: string) => {
+    setSelectedConvId(convId)
+
+    // Mark conversation as read
+    await supabase
+      .from('email_conversations')
+      .update({ is_read: true })
+      .eq('id', convId)
+
+    // Update local state to reflect read status
+    setConversations((prev) =>
+      prev.map((c) => (c.id === convId ? { ...c, is_read: true } : c))
+    )
+  }, [supabase])
+
   // Conversation list view
   if (!selectedConvId && !showCompose) {
     return (
       <ConversationList
         conversations={conversations}
         loading={loading}
-        onSelectConversation={setSelectedConvId}
+        onSelectConversation={handleSelectConversation}
         onCompose={() => setShowCompose(true)}
       />
     )

@@ -25,16 +25,21 @@ interface ResendEmailDetail {
       html?: string
 }
 
-async function fetchEmailBody(emailId: string): Promise<ResendEmailDetail | null> {
+async function fetchReceivedEmailBody(emailId: string): Promise<ResendEmailDetail | null> {
       const apiKey = process.env.RESEND_API_KEY
       if (!apiKey || !emailId) return null
       try {
-              const res = await fetch(`https://api.resend.com/emails/${emailId}`, {
+              // Use the Received Emails API — NOT /emails/ which is for sent emails
+              const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
                         headers: { Authorization: `Bearer ${apiKey}` },
               })
-              if (!res.ok) return null
+              if (!res.ok) {
+                        console.error('[inbound/resend] Failed to fetch received email body:', res.status, res.statusText)
+                        return null
+              }
               return await res.json()
-      } catch {
+      } catch (err) {
+              console.error('[inbound/resend] Error fetching received email body:', err)
               return null
       }
 }
@@ -67,14 +72,15 @@ export async function POST(request: NextRequest) {
 
   const { from, to, subject, text, html, headers, message_id, email_id } = payload.data
 
-  // If body fields are missing from webhook payload, fetch them from Resend API
+  // Resend webhooks do NOT include email body — always fetch from Received Emails API
   let resolvedText = text
       let resolvedHtml = html
-      if (!resolvedText && !resolvedHtml && email_id) {
-              console.log('[inbound/resend] Body missing from webhook, fetching from Resend API:', email_id)
-              const detail = await fetchEmailBody(email_id)
-              resolvedText = detail?.text
-              resolvedHtml = detail?.html
+      if (email_id) {
+              const detail = await fetchReceivedEmailBody(email_id)
+              if (detail) {
+                        resolvedText = detail.text ?? resolvedText
+                        resolvedHtml = detail.html ?? resolvedHtml
+              }
       }
 
   const serviceClient = createServiceClient()
@@ -205,17 +211,34 @@ export async function POST(request: NextRequest) {
                   continue
         }
 
-        // Update conversation status and timestamp
+        // Update conversation status, timestamp, and mark as unread
         await serviceClient
                   .from('email_conversations')
                   .update({
                               last_message_at: new Date().toISOString(),
                               status: 'pending',
+                              is_read: false,
                   })
                   .eq('id', conversationId)
 
         storedConversationIds.push(conversationId)
         }
+
+  // Update lead's last_interaction_at
+  if (storedConversationIds.length > 0) {
+          const { data: convForLead } = await serviceClient
+            .from('email_conversations')
+            .select('customer_id')
+            .eq('id', storedConversationIds[0])
+            .single()
+
+          if (convForLead?.customer_id) {
+                    await serviceClient
+                      .from('leads')
+                      .update({ last_interaction_at: new Date().toISOString() })
+                      .eq('id', convForLead.customer_id)
+          }
+  }
 
   // Trigger AI analysis for each conversation (non-blocking)
   for (const conversationId of storedConversationIds) {

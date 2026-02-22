@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { verifyResendWebhook } from '@/lib/email/webhook'
 import { extractReplyToken } from '@/lib/email/resend'
-import { sanitizeEmailHtml } from '@/lib/email/sanitize'
+import { sanitizeEmailHtml, stripQuotedContent } from '@/lib/email/sanitize'
 import { analyzeInboundEmail } from '@/lib/ai/aiAnalyzer'
 
 interface ResendInboundPayload {
@@ -85,8 +85,9 @@ export async function POST(request: NextRequest) {
 
   const serviceClient = createServiceClient()
 
-  // Sanitize HTML body
+  // Sanitize HTML body, then strip quoted/forwarded thread content
   const sanitizedHtml = resolvedHtml ? sanitizeEmailHtml(resolvedHtml) : null
+  const stripped = stripQuotedContent(sanitizedHtml, resolvedText ?? null)
 
   // Convert headers array to a case-insensitive lookup object (lowercase keys)
   const headersObj = headers
@@ -199,8 +200,8 @@ export async function POST(request: NextRequest) {
                               from_email: from,
                               to_email: to.join(', '),
                               subject,
-                              text_body: resolvedText ?? null,
-                              html_body: sanitizedHtml,
+                              text_body: stripped.text ?? resolvedText ?? null,
+                              html_body: stripped.html ?? sanitizedHtml,
                               provider: 'resend',
                               provider_message_id: message_id ?? null,
                               headers: headersObj,

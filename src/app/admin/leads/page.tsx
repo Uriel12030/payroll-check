@@ -110,16 +110,21 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
                   <th className="text-right px-4 py-3 font-medium text-gray-600">ציון</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">סטטוס</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600 hidden lg:table-cell">פעילות אחרונה</th>
-                  <th className="px-4 py-3"></th>
+                  <th className="px-4 py-3 w-16"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {(leads as Pick<Lead, 'id' | 'created_at' | 'last_interaction_at' | 'full_name' | 'email' | 'phone' | 'city' | 'status' | 'lead_score' | 'employer_name'>[]).map((lead) => {
                   const unreadCount = unreadMap.get(lead.id) || 0
                   return (
-                  <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={lead.id} className="relative hover:bg-blue-50/40 transition-colors cursor-pointer group">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{lead.full_name}</div>
+                      <Link
+                        href={`/admin/leads/${lead.id}`}
+                        className="font-medium text-gray-900 group-hover:text-blue-700 transition-colors after:absolute after:inset-0"
+                      >
+                        {lead.full_name}
+                      </Link>
                       <div className="text-xs text-gray-400">{lead.email}</div>
                     </td>
                     <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{lead.employer_name}</td>
@@ -148,26 +153,18 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
                       {new Date(lead.last_interaction_at).toLocaleDateString('he-IL')}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/admin/leads/${lead.id}`}
-                          className="text-blue-600 hover:text-blue-800 text-xs font-medium"
-                        >
-                          פתח
-                        </Link>
-                        <Link
-                          href={`/admin/leads/${lead.id}?tab=emails`}
-                          className="relative text-gray-400 hover:text-blue-600 transition-colors"
-                          title="אימיילים"
-                        >
-                          <Mail className="w-4 h-4" />
-                          {unreadCount > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] font-bold leading-none">
-                              {unreadCount}
-                            </span>
-                          )}
-                        </Link>
-                      </div>
+                      <Link
+                        href={`/admin/leads/${lead.id}?tab=emails`}
+                        className="relative z-10 inline-flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                        title="אימיילים"
+                      >
+                        <Mail className="w-4 h-4" />
+                        {unreadCount > 0 && (
+                          <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] font-bold leading-none">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </Link>
                     </td>
                   </tr>
                   )

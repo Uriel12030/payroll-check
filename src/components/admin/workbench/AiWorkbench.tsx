@@ -30,6 +30,7 @@ export function AiWorkbench({ leadId, leadLanguage = 'he' }: Props) {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [activePlaybook, setActivePlaybook] = useState<string | null>(null)
+  const [sendSuccess, setSendSuccess] = useState(false)
 
   // Draft state
   const [tone, setTone] = useState<EmailTone>('friendly')
@@ -136,9 +137,13 @@ export function AiWorkbench({ leadId, leadLanguage = 'he' }: Props) {
   }
 
   const handleSendDraft = async (editedText: string, editedHtml: string | null, editedSubject: string) => {
-    if (!draftId) return
+    if (!draftId) {
+      setError('שגיאה: מזהה הטיוטה חסר — נסו ליצור טיוטה מחדש')
+      return
+    }
     setSending(true)
     setError('')
+    setSendSuccess(false)
 
     try {
       const res = await fetch('/api/admin/ai/workbench/draft/send', {
@@ -159,6 +164,7 @@ export function AiWorkbench({ leadId, leadLanguage = 'he' }: Props) {
 
       setDraft(null)
       setDraftId(null)
+      setSendSuccess(true)
       // Reload state to reflect changes
       await loadAiState()
     } catch (err) {
@@ -245,6 +251,14 @@ export function AiWorkbench({ leadId, leadLanguage = 'he' }: Props) {
           {analyzing ? 'מנתח...' : aiState?.last_analyzed_at ? 'נתח מחדש' : 'נתח תיק'}
         </button>
       </div>
+
+      {/* Success banner */}
+      {sendSuccess && (
+        <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
+          <Sparkles className="w-4 h-4 text-green-500" />
+          <p className="text-sm text-green-700">האימייל נשלח בהצלחה!</p>
+        </div>
+      )}
 
       {/* Error banner */}
       {error && (

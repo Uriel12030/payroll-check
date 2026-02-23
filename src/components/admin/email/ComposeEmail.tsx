@@ -72,7 +72,7 @@ export function ComposeEmail({
           <p className="text-sm text-red-600">{sendError}</p>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
           <button
             onClick={onSend}
             disabled={sending || !subject.trim() || !body.trim()}

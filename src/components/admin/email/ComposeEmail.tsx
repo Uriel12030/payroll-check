@@ -74,18 +74,18 @@ export function ComposeEmail({
 
         <div className="flex gap-2 justify-end">
           <button
+            onClick={onCancel}
+            className="btn-secondary text-sm py-2 px-5"
+          >
+            ביטול
+          </button>
+          <button
             onClick={onSend}
             disabled={sending || !subject.trim() || !body.trim()}
             className="btn-primary text-sm py-2 px-5 flex items-center gap-1.5"
           >
             <Send className="w-4 h-4" />
             {sending ? 'שולח...' : 'שלח'}
-          </button>
-          <button
-            onClick={onCancel}
-            className="btn-secondary text-sm py-2 px-5"
-          >
-            ביטול
           </button>
         </div>
       </div>

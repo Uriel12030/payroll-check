@@ -125,19 +125,11 @@ export function DraftPreview({
       {/* Actions */}
       <div className="flex flex-wrap gap-2 justify-end">
         <button
-          onClick={handleSend}
-          disabled={sending}
-          className="btn-primary text-sm py-2 px-5 flex items-center gap-1.5"
+          onClick={onDiscard}
+          className="px-4 py-2 text-sm border border-red-200 rounded-lg text-red-600 hover:bg-red-50 flex items-center gap-1.5"
         >
-          <Send className="w-4 h-4" />
-          {sending ? 'שולח...' : 'שלח אימייל'}
-        </button>
-        <button
-          onClick={onCopy}
-          className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 flex items-center gap-1.5"
-        >
-          <Copy className="w-4 h-4" />
-          העתק
+          <Trash2 className="w-4 h-4" />
+          בטל
         </button>
         <button
           onClick={onRegenerate}
@@ -147,11 +139,19 @@ export function DraftPreview({
           חדש
         </button>
         <button
-          onClick={onDiscard}
-          className="px-4 py-2 text-sm border border-red-200 rounded-lg text-red-600 hover:bg-red-50 flex items-center gap-1.5"
+          onClick={onCopy}
+          className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 flex items-center gap-1.5"
         >
-          <Trash2 className="w-4 h-4" />
-          בטל
+          <Copy className="w-4 h-4" />
+          העתק
+        </button>
+        <button
+          onClick={handleSend}
+          disabled={sending}
+          className="btn-primary text-sm py-2 px-5 flex items-center gap-1.5"
+        >
+          <Send className="w-4 h-4" />
+          {sending ? 'שולח...' : 'שלח אימייל'}
         </button>
       </div>
     </div>

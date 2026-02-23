@@ -123,7 +123,7 @@ export function DraftPreview({
       )}
 
       {/* Actions */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 justify-end">
         <button
           onClick={handleSend}
           disabled={sending}

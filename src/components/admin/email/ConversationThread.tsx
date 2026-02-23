@@ -139,14 +139,16 @@ export function ConversationThread({
           <p className="text-sm text-red-600 mb-2">{sendError}</p>
         )}
 
-        <button
-          onClick={onReply}
-          disabled={replying || !replyBody.trim()}
-          className="btn-primary text-sm py-2 px-5 flex items-center gap-1.5"
-        >
-          <Send className="w-4 h-4" />
-          {replying ? 'שולח...' : 'שלח תשובה'}
-        </button>
+        <div className="flex justify-end">
+          <button
+            onClick={onReply}
+            disabled={replying || !replyBody.trim()}
+            className="btn-primary text-sm py-2 px-5 flex items-center gap-1.5"
+          >
+            <Send className="w-4 h-4" />
+            {replying ? 'שולח...' : 'שלח תשובה'}
+          </button>
+        </div>
       </div>
     </div>
   )

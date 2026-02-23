@@ -49,7 +49,8 @@ export function AiPanel({ leadId, conversationId }: Props) {
     }
 
     setLoading(false)
-  }, [leadId, conversationId, supabase])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadId, conversationId])
 
   useEffect(() => {
     loadAiData()
@@ -78,7 +79,8 @@ export function AiPanel({ leadId, conversationId }: Props) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [conversationId, supabase, loadAiData])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId, loadAiData])
 
   const handleAnalyze = async () => {
     if (!conversationId) return

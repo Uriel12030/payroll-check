@@ -1,12 +1,23 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import dynamic from 'next/dynamic'
 import { updateLeadStatus, updateLeadNotes } from '@/actions/updateLead'
 import type { Lead, LeadFile, LeadStatus, LeadFlags } from '@/types'
 import { FileText, Download, CheckCircle, XCircle, Clock, AlertCircle, Mail } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { LeadPDFButton } from './LeadPDFButton'
-import { EmailTab } from './EmailTab'
+
+const EmailTab = dynamic(
+  () => import('./EmailTab').then((m) => ({ default: m.EmailTab })),
+  {
+    loading: () => (
+      <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+        <p className="text-sm text-gray-400">טוען אימיילים...</p>
+      </div>
+    ),
+  }
+)
 
 type TabKey = 'details' | 'emails'
 

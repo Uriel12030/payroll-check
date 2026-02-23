@@ -5,6 +5,8 @@ import type { Lead, LeadFile } from '@/types'
 import { LeadDetailClient } from '@/components/admin/LeadDetailClient'
 import type { Metadata } from 'next'
 
+export const dynamic = 'force-dynamic'
+
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   return { title: `פנייה ${params.id.slice(0, 8).toUpperCase()} – Admin` }
 }
@@ -20,23 +22,28 @@ export default async function LeadDetailPage({
   const supabase = createClient()
   const serviceClient = createServiceClient()
 
-  const { data: lead, error } = await supabase
-    .from('leads')
-    .select('*')
-    .eq('id', params.id)
-    .single()
+  // Fetch lead and files in parallel
+  const [leadResult, filesResult] = await Promise.all([
+    supabase
+      .from('leads')
+      .select('*')
+      .eq('id', params.id)
+      .single(),
+    supabase
+      .from('files')
+      .select('*')
+      .eq('lead_id', params.id)
+      .order('created_at', { ascending: true }),
+  ])
 
+  const { data: lead, error } = leadResult
   if (error || !lead) notFound()
 
-  const { data: files = [] } = await supabase
-    .from('files')
-    .select('*')
-    .eq('lead_id', params.id)
-    .order('created_at', { ascending: true })
+  const files = (filesResult.data ?? []) as LeadFile[]
 
-  // Generate signed URLs for files
+  // Generate signed URLs for files in parallel
   const filesWithUrls = await Promise.all(
-    (files as LeadFile[]).map(async (file) => {
+    files.map(async (file) => {
       const { data } = await serviceClient.storage
         .from('lead-files')
         .createSignedUrl(file.storage_path, 3600)

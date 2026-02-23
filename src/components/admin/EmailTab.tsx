@@ -41,7 +41,8 @@ export function EmailTab({ leadId, leadEmail }: Props) {
 
     if (data) setConversations(data)
     setLoading(false)
-  }, [leadId, supabase])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadId])
 
   useEffect(() => {
     loadConversations()
@@ -57,7 +58,8 @@ export function EmailTab({ leadId, leadEmail }: Props) {
 
     if (data) setMessages(data)
     setMessagesLoading(false)
-  }, [supabase])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (selectedConvId) {
@@ -79,7 +81,8 @@ export function EmailTab({ leadId, leadEmail }: Props) {
           table: 'email_messages',
           filter: `conversation_id=eq.${selectedConvId}`,
         },
-        (payload) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => {
           const newMsg = payload.new as EmailMessage
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMsg.id)) return prev
@@ -92,7 +95,8 @@ export function EmailTab({ leadId, leadEmail }: Props) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [selectedConvId, supabase])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedConvId])
 
   const handleSendNew = async () => {
     if (!composeSubject.trim() || !composeBody.trim()) return
@@ -178,7 +182,8 @@ export function EmailTab({ leadId, leadEmail }: Props) {
     setConversations((prev) =>
       prev.map((c) => (c.id === convId ? { ...c, is_read: true } : c))
     )
-  }, [supabase])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Conversation list view
   if (!selectedConvId && !showCompose) {

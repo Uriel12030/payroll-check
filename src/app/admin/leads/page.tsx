@@ -1,12 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Mail } from 'lucide-react'
+import { Mail, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Lead, LeadFlags } from '@/types'
 import type { Metadata } from 'next'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'פניות – Admin | Payroll Check',
 }
+
+const PAGE_SIZE = 25
 
 const statusColors: Record<string, string> = {
   new: 'bg-blue-100 text-blue-700',
@@ -51,8 +55,16 @@ const issueLabels: Record<string, string> = {
   other: 'אחר',
 }
 
+function buildQuery(params: Record<string, string | undefined>): string {
+  const sp = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v && v !== 'all') sp.set(k, v)
+  }
+  return sp.toString()
+}
+
 interface PageProps {
-  searchParams: { status?: string; q?: string; lang?: string }
+  searchParams: { status?: string; q?: string; lang?: string; page?: string }
 }
 
 /** Extract quick-start field from lead_flags or top-level column */
@@ -73,10 +85,18 @@ type LeadListRow = Pick<Lead,
 export default async function AdminLeadsPage({ searchParams }: PageProps) {
   const supabase = createClient()
 
+  const currentPage = Math.max(1, parseInt(searchParams.page ?? '1', 10) || 1)
+  const from = (currentPage - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
+
   let query = supabase
     .from('leads')
-    .select('id, created_at, full_name, email, phone, status, preferred_language, years_with_employer_bucket, employment_type_quick, main_issues, lead_flags')
+    .select(
+      'id, created_at, full_name, email, phone, status, preferred_language, years_with_employer_bucket, employment_type_quick, main_issues, lead_flags',
+      { count: 'exact' }
+    )
     .order('created_at', { ascending: false })
+    .range(from, to)
 
   if (searchParams.status && searchParams.status !== 'all') {
     query = query.eq('status', searchParams.status)
@@ -92,24 +112,31 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
     query = query.eq('preferred_language', searchParams.lang)
   }
 
-  const { data: leads = [] } = await query
+  const { data: leads = [], count } = await query
+  const totalCount = count ?? 0
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
-  // Fetch unread conversation counts per lead
-  const { data: unreadData = [] } = await supabase
-    .from('email_conversations')
-    .select('customer_id')
-    .eq('is_read', false)
-
+  // Fetch unread conversation counts scoped to leads on this page
+  const leadIds = (leads ?? []).map((l) => l.id)
   const unreadMap = new Map<string, number>()
-  ;(unreadData ?? []).forEach((c: { customer_id: string }) => {
-    unreadMap.set(c.customer_id, (unreadMap.get(c.customer_id) || 0) + 1)
-  })
+
+  if (leadIds.length > 0) {
+    const { data: unreadData = [] } = await supabase
+      .from('email_conversations')
+      .select('customer_id')
+      .eq('is_read', false)
+      .in('customer_id', leadIds)
+
+    ;(unreadData ?? []).forEach((c: { customer_id: string }) => {
+      unreadMap.set(c.customer_id, (unreadMap.get(c.customer_id) || 0) + 1)
+    })
+  }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">פניות</h1>
-        <span className="text-sm text-gray-500">{leads?.length ?? 0} תוצאות</span>
+        <span className="text-sm text-gray-500">{totalCount} תוצאות</span>
       </div>
 
       {/* Filters */}
@@ -140,7 +167,7 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
           <option value="he">עברית</option>
           <option value="en">English</option>
           <option value="ru">Русский</option>
-          <option value="am">አማרኛ</option>
+          <option value="am">አማርኛ</option>
         </select>
         <button type="submit" className="btn-primary py-2 px-5 text-sm">
           חפש
@@ -251,6 +278,45 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 mt-6">
+          {currentPage > 1 ? (
+            <Link
+              href={`/admin/leads?${buildQuery({ ...searchParams, page: String(currentPage - 1) })}`}
+              className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+              הקודם
+            </Link>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-300 bg-gray-50 border border-gray-100 rounded-lg cursor-not-allowed">
+              <ChevronRight className="w-4 h-4" />
+              הקודם
+            </span>
+          )}
+
+          <span className="text-sm text-gray-500">
+            עמוד {currentPage} מתוך {totalPages}
+          </span>
+
+          {currentPage < totalPages ? (
+            <Link
+              href={`/admin/leads?${buildQuery({ ...searchParams, page: String(currentPage + 1) })}`}
+              className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              הבא
+              <ChevronLeft className="w-4 h-4" />
+            </Link>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-300 bg-gray-50 border border-gray-100 rounded-lg cursor-not-allowed">
+              הבא
+              <ChevronLeft className="w-4 h-4" />
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

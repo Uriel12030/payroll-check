@@ -7,5 +7,15 @@ export type {
   AiDraftStatus,
   CaseAiDraft,
   CaseAiAction,
+  EmailTone,
+  AiDraftMetadata,
+  PlaybookQuestion,
+  PlaybookDocument,
+  PlaybookFlag,
+  AiPlaybook,
+  WorkbenchQuestion,
+  WorkbenchRiskFlag,
+  WorkbenchStrength,
+  DocumentRequest,
 } from './ai'
 export type { IntakeFormData } from './intake'

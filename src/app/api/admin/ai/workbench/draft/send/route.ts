@@ -4,17 +4,11 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/lib/auth/isAdmin'
 import { getResendClient, getEmailFrom, buildReplyToAddress } from '@/lib/email/resend'
 
-const sendEmailSchema = z.object({
-  leadId: z.string().uuid(),
-  conversationId: z.string().uuid().optional(),
-  subject: z.string().min(1, 'Subject is required'),
-  text: z.string().min(1, 'Message body is required'),
-  html: z.string().optional(),
-  // Workbench fields (optional — populated when sending via AI draft)
-  language: z.string().optional(),
-  hebrew_translation: z.string().optional(),
-  ai_metadata: z.record(z.string(), z.unknown()).optional(),
-  draftId: z.string().uuid().optional(),
+const sendDraftSchema = z.object({
+  draftId: z.string().uuid(),
+  editedText: z.string().optional(),
+  editedHtml: z.string().optional(),
+  editedSubject: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -28,7 +22,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Parse & validate body
   let body: unknown
   try {
     body = await request.json()
@@ -36,7 +29,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const parsed = sendEmailSchema.safeParse(body)
+  const parsed = sendDraftSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json(
       { error: 'Validation failed', details: parsed.error.flatten() },
@@ -44,52 +37,68 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { leadId, conversationId, subject, text, html, language, hebrew_translation, ai_metadata, draftId } = parsed.data
+  const { draftId, editedText, editedHtml, editedSubject } = parsed.data
   const serviceClient = createServiceClient()
 
-  // Load lead to get their email
-  const { data: lead, error: leadError } = await serviceClient
-    .from('leads')
-    .select('id, email, full_name')
-    .eq('id', leadId)
-    .single()
-
-  if (leadError || !lead) {
-    return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-  }
-
   try {
-    let convId = conversationId
+    // 1. Load draft with lead info
+    const { data: draft, error: draftError } = await serviceClient
+      .from('case_ai_drafts')
+      .select('*, leads:lead_id(id, email, full_name)')
+      .eq('id', draftId)
+      .single()
+
+    if (draftError || !draft) {
+      return NextResponse.json({ error: 'Draft not found' }, { status: 404 })
+    }
+
+    if (draft.status !== 'proposed') {
+      return NextResponse.json(
+        { error: `Draft has already been ${draft.status}` },
+        { status: 409 }
+      )
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const lead = (draft as any).leads as { id: string; email: string; full_name: string }
+    if (!lead?.email) {
+      return NextResponse.json({ error: 'Lead email not found' }, { status: 404 })
+    }
+
+    // 2. Determine final content (edited values take priority)
+    const finalSubject = editedSubject ?? draft.suggested_subject
+    const finalText = editedText ?? draft.suggested_text
+    const finalHtml = editedHtml ?? draft.suggested_html ?? undefined
+
+    // 3. Get or create conversation
+    let convId = draft.conversation_id
     let replyToken: string
 
     if (convId) {
-      // Verify conversation exists and belongs to this lead
       const { data: existingConv } = await serviceClient
         .from('email_conversations')
         .select('id, reply_token')
         .eq('id', convId)
-        .eq('customer_id', leadId)
         .single()
 
       if (!existingConv) {
         return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
       }
-
       replyToken = existingConv.reply_token
     } else {
       // Create new conversation
       const { data: newConv, error: convError } = await serviceClient
         .from('email_conversations')
         .insert({
-          customer_id: leadId,
-          subject,
+          customer_id: lead.id,
+          subject: finalSubject,
           status: 'open',
         })
         .select('id, reply_token')
         .single()
 
       if (convError || !newConv) {
-        console.error('[email/send] Failed to create conversation:', convError)
+        console.error('[draft/send] Failed to create conversation:', convError)
         return NextResponse.json({ error: 'Failed to create conversation' }, { status: 500 })
       }
 
@@ -97,12 +106,14 @@ export async function POST(request: NextRequest) {
       replyToken = newConv.reply_token
     }
 
+    // 4. Send via Resend (with threading headers for replies)
     const fromAddress = getEmailFrom()
     const replyToAddress = buildReplyToAddress(replyToken)
+    const resend = getResendClient()
 
-    // Build threading headers for replies (In-Reply-To + References)
+    // Build In-Reply-To / References headers for threaded conversations
     const threadingHeaders: Record<string, string> = {}
-    if (convId && conversationId) {
+    if (draft.conversation_id) {
       const { data: lastInbound } = await serviceClient
         .from('email_messages')
         .select('provider_message_id, headers')
@@ -122,35 +133,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Ensure reply subject starts with "Re: " for threaded conversations
-    const finalSubject = conversationId && !subject.startsWith('Re:')
-      ? `Re: ${subject}`
-      : subject
-
-    // Send via Resend
-    const resend = getResendClient()
     const { data: sendResult, error: sendError } = await resend.emails.send({
       from: fromAddress,
       to: [lead.email],
       subject: finalSubject,
-      text,
-      html: html ?? undefined,
+      text: finalText,
+      html: finalHtml,
       replyTo: replyToAddress,
       headers: Object.keys(threadingHeaders).length > 0 ? threadingHeaders : undefined,
     })
 
     if (sendError) {
-      console.error('[email/send] Resend error:', sendError)
+      console.error('[draft/send] Resend error:', sendError)
       return NextResponse.json({ error: 'Failed to send email' }, { status: 502 })
     }
 
-    console.log('[email/send] success', {
+    console.log('[draft/send] Email sent', {
       to: lead.email,
-      from: fromAddress,
+      draftId,
       providerMessageId: sendResult?.id,
     })
 
-    // Store outbound message
+    // 5. Store outbound message with workbench metadata
     const { data: message, error: msgError } = await serviceClient
       .from('email_messages')
       .insert({
@@ -159,61 +163,53 @@ export async function POST(request: NextRequest) {
         from_email: fromAddress,
         to_email: lead.email,
         subject: finalSubject,
-        text_body: text,
-        html_body: html ?? null,
+        text_body: finalText,
+        html_body: finalHtml ?? null,
         provider: 'resend',
         provider_message_id: sendResult?.id ?? null,
         created_by_admin_id: user.id,
-        language: language ?? null,
-        hebrew_translation: hebrew_translation ?? null,
-        ai_metadata: ai_metadata ?? null,
+        language: draft.language ?? null,
+        hebrew_translation: draft.hebrew_translation ?? null,
+        ai_metadata: draft.ai_metadata ?? null,
       })
       .select('id')
       .single()
 
     if (msgError) {
-      // Email was sent but we failed to store the record — log and warn the client
-      console.error('[email/send] Failed to store message:', msgError)
-      return NextResponse.json({
-        conversationId: convId,
-        messageId: null,
-        providerMessageId: sendResult?.id ?? null,
-        warning: 'Email sent but failed to store in database. Check logs.',
+      console.error('[draft/send] Failed to store message:', msgError)
+    }
+
+    // 6. Mark draft as approved/sent
+    await serviceClient
+      .from('case_ai_drafts')
+      .update({
+        status: 'sent',
+        approved_by_admin_id: user.id,
+        edited_text: editedText ?? null,
+        edited_html: editedHtml ?? null,
+        updated_at: new Date().toISOString(),
       })
-    }
+      .eq('id', draftId)
 
-    // If sent from a draft, mark it as sent
-    if (draftId) {
-      await serviceClient
-        .from('case_ai_drafts')
-        .update({
-          status: 'sent',
-          approved_by_admin_id: user.id,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', draftId)
-        .eq('status', 'proposed')
-    }
-
-    // Update conversation timestamp
+    // 7. Update conversation + lead timestamps
     await serviceClient
       .from('email_conversations')
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', convId)
 
-    // Update lead's last_interaction_at
     await serviceClient
       .from('leads')
       .update({ last_interaction_at: new Date().toISOString() })
-      .eq('id', leadId)
+      .eq('id', lead.id)
 
     return NextResponse.json({
       conversationId: convId,
       messageId: message?.id ?? null,
       providerMessageId: sendResult?.id ?? null,
+      draftStatus: 'sent',
     })
   } catch (err) {
-    console.error('[email/send] Unexpected error:', err)
+    console.error('[draft/send] Unexpected error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

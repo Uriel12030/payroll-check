@@ -1,3 +1,5 @@
+// ---------- Core AI types ----------
+
 export interface RequiredField {
   key: string
   label: string
@@ -24,11 +26,28 @@ export interface CaseAiState {
   last_analyzed_message_id: string | null
   last_analyzed_at: string | null
   confidence_score: number
+  // Workbench fields
+  active_playbooks: string[]
+  workbench_summary: string
+  missing_info_he: string[]
+  risk_notes_internal_he: string[]
+  recommended_questions: WorkbenchQuestion[]
+  risk_flags: WorkbenchRiskFlag[]
+  strength_flags: WorkbenchStrength[]
+  documents_requested: DocumentRequest[]
   created_at: string
   updated_at: string
 }
 
 export type AiDraftStatus = 'proposed' | 'approved' | 'sent' | 'discarded'
+export type EmailTone = 'friendly' | 'formal' | 'firm'
+
+export interface AiDraftMetadata {
+  model: string
+  prompt_version: string
+  tokens: { prompt_tokens?: number; completion_tokens?: number }
+  generated_at: string
+}
 
 export interface CaseAiDraft {
   id: string
@@ -40,6 +59,15 @@ export interface CaseAiDraft {
   questions: string[]
   status: AiDraftStatus
   source_action_id: string | null
+  // Workbench fields
+  internal_summary_he: string | null
+  tone: EmailTone
+  language: string
+  hebrew_translation: string | null
+  ai_metadata: AiDraftMetadata | null
+  approved_by_admin_id: string | null
+  edited_text: string | null
+  edited_html: string | null
   created_at: string
   updated_at: string
 }
@@ -55,65 +83,73 @@ export interface CaseAiAction {
   tokens: { prompt_tokens?: number; completion_tokens?: number } | null
   error_message: string | null
   created_by_admin_id: string | null
+  prompt_version: string | null
   created_at: string
 }
 
-// ── AI Workbench types ──
+// ---------- Playbook types ----------
+
+export interface PlaybookQuestion {
+  key: string
+  label_he: string
+  label_en?: string
+  priority: number
+}
+
+export interface PlaybookDocument {
+  key: string
+  label_he: string
+  label_en?: string
+}
+
+export interface PlaybookFlag {
+  condition: string
+  label_he: string
+  severity?: 'high' | 'medium' | 'low'
+}
+
+export interface AiPlaybook {
+  id: string
+  slug: string
+  title_he: string
+  title_en: string | null
+  description_he: string | null
+  questions: PlaybookQuestion[]
+  documents: PlaybookDocument[]
+  red_flags: PlaybookFlag[]
+  strengths: PlaybookFlag[]
+  is_active: boolean
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
+// ---------- Workbench types ----------
 
 export interface WorkbenchQuestion {
   id: string
   text_he: string
-  rubric: string
-  default_selected: boolean
+  playbook_slug: string | null
+  selected: boolean
+  answered: boolean
 }
 
-export interface WorkbenchDocument {
-  id: string
-  text_he: string
-  rubric: string
+export interface WorkbenchRiskFlag {
+  label_he: string
+  severity: 'high' | 'medium' | 'low'
+  playbook_slug: string | null
+  source: 'ai' | 'rule' | 'manual'
+}
+
+export interface WorkbenchStrength {
+  label_he: string
+  playbook_slug: string | null
+  source: 'ai' | 'rule' | 'manual'
+}
+
+export interface DocumentRequest {
+  key: string
+  label_he: string
   priority: 'high' | 'medium' | 'low'
+  status: 'pending' | 'received' | 'not_applicable'
 }
-
-export interface WorkbenchOutput {
-  summary_he: string
-  missing_info_he: string[]
-  recommended_questions: WorkbenchQuestion[]
-  documents_checklist: WorkbenchDocument[]
-  risk_notes_internal_he: string[]
-}
-
-export interface EmailDraftOutput {
-  internal_preview_he: {
-    subject_he: string
-    body_he: string
-  }
-  external_email: {
-    language: 'he' | 'en' | 'ru' | 'am'
-    subject: string
-    body: string
-    tone: 'friendly' | 'formal' | 'firm'
-  }
-  external_email_he_translation: {
-    subject_he: string
-    body_he: string
-  }
-}
-
-export type Rubric =
-  | 'שעות נוספות'
-  | 'הלנת שכר / אי תשלום'
-  | 'פנסיה והפרשות'
-  | 'פיצויי פיטורים'
-  | 'חופשה/מחלה'
-  | 'שימוע/פיטורים שלא כדין'
-  | 'הרעת תנאים'
-
-export const RUBRIC_LIST: Rubric[] = [
-  'שעות נוספות',
-  'הלנת שכר / אי תשלום',
-  'פנסיה והפרשות',
-  'פיצויי פיטורים',
-  'חופשה/מחלה',
-  'שימוע/פיטורים שלא כדין',
-  'הרעת תנאים',
-]

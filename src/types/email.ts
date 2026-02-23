@@ -28,6 +28,10 @@ export interface EmailMessage {
   headers: Record<string, unknown> | null
   occurred_at: string
   created_by_admin_id: string | null
+  // Workbench fields
+  hebrew_translation: string | null
+  language: string | null
+  ai_metadata: Record<string, unknown> | null
   created_at: string
   // AI Workbench fields (migration 008)
   status: EmailMessageStatus

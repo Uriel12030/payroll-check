@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { updateLeadStatus, updateLeadNotes } from '@/actions/updateLead'
 import type { Lead, LeadFile, LeadStatus, LeadFlags } from '@/types'
-import { FileText, Download, CheckCircle, XCircle, Clock, AlertCircle, Mail } from 'lucide-react'
+import { FileText, Download, CheckCircle, XCircle, Clock, AlertCircle, Mail, Brain } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { LeadPDFButton } from './LeadPDFButton'
 
@@ -19,7 +19,18 @@ const EmailTab = dynamic(
   }
 )
 
-type TabKey = 'details' | 'emails'
+const AiWorkbench = dynamic(
+  () => import('./workbench/AiWorkbench').then((m) => ({ default: m.AiWorkbench })),
+  {
+    loading: () => (
+      <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+        <p className="text-sm text-gray-400">טוען AI Workbench...</p>
+      </div>
+    ),
+  }
+)
+
+type TabKey = 'details' | 'emails' | 'workbench'
 
 interface Props {
   lead: Lead
@@ -170,11 +181,27 @@ export function LeadDetailClient({ lead, files, initialTab = 'details' }: Props)
           <Mail className="w-4 h-4" />
           אימיילים
         </button>
+        <button
+          onClick={() => setActiveTab('workbench')}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+            activeTab === 'workbench'
+              ? 'border-purple-500 text-purple-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Brain className="w-4 h-4" />
+          עבודת AI
+        </button>
       </div>
 
       {/* Tab: Emails */}
       {activeTab === 'emails' && (
         <EmailTab leadId={lead.id} leadEmail={lead.email} />
+      )}
+
+      {/* Tab: Workbench */}
+      {activeTab === 'workbench' && (
+        <AiWorkbench leadId={lead.id} leadLanguage={lead.preferred_language ?? 'he'} />
       )}
 
       {/* Tab: Details */}

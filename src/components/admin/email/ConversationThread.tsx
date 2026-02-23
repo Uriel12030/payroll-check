@@ -4,6 +4,7 @@ import { useRef, useEffect } from 'react'
 import { Send, ArrowRight, Inbox, ChevronLeft } from 'lucide-react'
 import type { EmailConversation, EmailMessage, ConversationStatus } from '@/types'
 import { AiPanel } from '../AiPanel'
+import { HebrewTranslation } from '../workbench/HebrewTranslation'
 import { formatDateTime } from './ConversationList'
 
 const statusLabels: Record<ConversationStatus, { label: string; color: string }> = {
@@ -105,6 +106,15 @@ export function ConversationThread({
                 <p className="text-sm text-gray-700 whitespace-pre-wrap">
                   {msg.text_body ?? ''}
                 </p>
+              )}
+
+              {/* Hebrew translation for inbound non-Hebrew messages */}
+              {msg.direction === 'inbound' && (
+                <HebrewTranslation
+                  messageId={msg.id}
+                  messageText={msg.text_body ?? ''}
+                  existingTranslation={msg.hebrew_translation}
+                />
               )}
             </div>
           ))

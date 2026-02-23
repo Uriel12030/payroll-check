@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Brain, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Brain, AlertTriangle, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 import type { CaseAiState, CaseAiDraft } from '@/types'
 import { AiStateSummary } from './ai/AiStateSummary'
 import { AiDraftCard } from './ai/AiDraftCard'
@@ -210,6 +210,14 @@ export function AiPanel({ leadId, conversationId }: Props) {
                   {error}
                 </div>
               )}
+
+              {/* Workbench link */}
+              <div className="pt-2 border-t border-purple-200">
+                <p className="text-xs text-purple-600 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  עבור ל-Workbench לניתוח מלא בלשונית &quot;עבודת AI&quot;
+                </p>
+              </div>
             </>
           )}
         </div>

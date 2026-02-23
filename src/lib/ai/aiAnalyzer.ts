@@ -8,6 +8,7 @@ import {
   computeMissingFields,
   mergeKnownFacts,
 } from './missingFieldsEngine'
+import { checkAiRateLimit, logUsageWarnings } from './rateLimiter'
 import type { Lead, EmailMessage, RequiredField } from '@/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -176,6 +177,7 @@ async function callOpenAI(
   tokenUsage: { prompt_tokens?: number; completion_tokens?: number } | null
 }> {
   const openai = getOpenAIClient()
+  const maxCompletionTokens = parseInt(process.env.AI_MAX_COMPLETION_TOKENS ?? '1500', 10)
   const completion = await openai.chat.completions.create({
     model,
     messages: [
@@ -183,8 +185,8 @@ async function callOpenAI(
       { role: 'user', content: userPrompt },
     ],
     response_format: { type: 'json_object' },
-    temperature: 0.3,
-    max_tokens: 2000,
+    temperature: 0.2,
+    max_tokens: maxCompletionTokens,
   })
 
   const raw = completion.choices[0]?.message?.content
@@ -292,6 +294,40 @@ async function persistResults(
   }
 }
 
+// ---------- Helper: deduplication check ----------
+
+async function isAlreadyAnalyzed(
+  serviceClient: SupabaseClient,
+  leadId: string,
+  conversationId: string
+): Promise<boolean> {
+  // Check if the latest message in this conversation was already analyzed
+  const { data: latestMsg } = await serviceClient
+    .from('email_messages')
+    .select('id, occurred_at')
+    .eq('conversation_id', conversationId)
+    .order('occurred_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!latestMsg) return false
+
+  const { data: aiState } = await serviceClient
+    .from('case_ai_state')
+    .select('last_analyzed_message_id, last_analyzed_at')
+    .eq('lead_id', leadId)
+    .maybeSingle()
+
+  if (!aiState?.last_analyzed_at) return false
+
+  // If the latest message is older than the last analysis, skip
+  if (new Date(latestMsg.occurred_at) <= new Date(aiState.last_analyzed_at)) {
+    return true
+  }
+
+  return false
+}
+
 // ---------- Main pipeline ----------
 
 export async function analyzeInboundEmail(params: {
@@ -305,6 +341,22 @@ export async function analyzeInboundEmail(params: {
   const serviceClient = createServiceClient()
 
   try {
+    // 0a. Rate limit check
+    const rateLimit = await checkAiRateLimit(serviceClient, leadId)
+    if (!rateLimit.allowed) {
+      console.warn(`[aiAnalyzer] Rate limited: ${rateLimit.reason}`)
+      return { success: false, error: rateLimit.reason }
+    }
+
+    // 0b. Deduplication: skip if no new messages since last analysis (auto-trigger only)
+    if (trigger === 'inbound_email') {
+      const alreadyDone = await isAlreadyAnalyzed(serviceClient, leadId, conversationId)
+      if (alreadyDone) {
+        console.log(`[aiAnalyzer] Skipping duplicate analysis for lead ${leadId}, conversation ${conversationId}`)
+        return { success: true }
+      }
+    }
+
     // 1. Load lead context
     const context = await loadLeadContext(serviceClient, leadId)
     if ('error' in context) {
@@ -395,6 +447,9 @@ export async function analyzeInboundEmail(params: {
       requiredFields,
       currentKnownFacts: knownFacts,
     })
+
+    // 6. Log usage warnings if approaching limits
+    logUsageWarnings(rateLimit.usage, leadId)
 
     return { success: true, actionId, draftId }
   } catch (err) {

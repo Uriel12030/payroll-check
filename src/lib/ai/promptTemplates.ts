@@ -150,6 +150,7 @@ export function buildWorkbenchSystemPrompt(playbooks: AiPlaybook[]): string {
 - בשדה missing_info_he, ציין 3 רשימות קצרות: מה הבנת, מה חסר כדי להעריך, מה לבקש עכשיו.
 - בשדה risk_notes_internal_he, רשום הערות פנימיות לעו"ד — הערכות ("נראה חלש", "סיכוי טוב") שלעולם לא יופיעו מול הלקוח.
 - לכל מסמך ציין עדיפות: high/medium/low.
+- חשוב: workbench_summary הוא מחרוזת (string) אחת — לא מערך! השתמש בתו \\n כדי להפריד בין נקודות.
 
 ## נושאים זמינים (Playbooks):
 ${playbooksSection}
@@ -205,7 +206,7 @@ ${threadStr || '(אין שיחות עדיין)'}
 ## הנחיות פלט
 ענה ב-JSON בלבד, בדיוק בפורמט הזה:
 {
-  "workbench_summary": "סיכום מפורט בנקודות (bullets) — כל מה שידוע, מה חסר, ומה חשוב",
+  "workbench_summary": "• נקודה ראשונה\\n• נקודה שנייה\\n• נקודה שלישית (מחרוזת אחת עם \\n בין הנקודות, לא מערך)",
   "case_summary": "משפט-שניים סיכום קצר",
   "missing_info_he": ["מה חסר כדי להעריך את התיק — פריט 1", "פריט 2"],
   "risk_notes_internal_he": ["הערה פנימית לעו\"ד בלבד — לעולם לא מול הלקוח"],

@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest'
+import { z } from 'zod'
 import {
   aiAnalysisOutputSchema,
   workbenchAnalysisOutputSchema,
   emailDraftOutputSchema,
   translationOutputSchema,
 } from '@/lib/ai/schemas'
+import { SchemaValidationError } from '@/lib/ai/shared'
 
 describe('aiAnalysisOutputSchema', () => {
   const validOutput = {
@@ -194,5 +196,90 @@ describe('translationOutputSchema', () => {
 
   it('rejects non-string hebrew_translation', () => {
     expect(() => translationOutputSchema.parse({ hebrew_translation: 123 })).toThrow()
+  })
+})
+
+// ---------- SchemaValidationError (incomplete AI response handling) ----------
+
+describe('SchemaValidationError', () => {
+  // Simulates the exact scenario from the original bug: OpenAI returns JSON
+  // missing all draft fields, Zod rejects it, and we wrap the error with the
+  // raw output so callers can persist it for investigation.
+  const incompleteAiResponse = {
+    some_unrelated_key: 'value the model hallucinated',
+  }
+
+  it('wraps a Zod error with the raw AI output for email draft schema', () => {
+    let caughtError: SchemaValidationError | undefined
+
+    try {
+      emailDraftOutputSchema.parse(incompleteAiResponse)
+    } catch (zodErr) {
+      // This mirrors what callOpenAIWithSchema does
+      caughtError = new SchemaValidationError(
+        zodErr instanceof Error ? zodErr.message : String(zodErr),
+        incompleteAiResponse,
+        zodErr
+      )
+    }
+
+    expect(caughtError).toBeInstanceOf(SchemaValidationError)
+    expect(caughtError!.rawOutput).toEqual(incompleteAiResponse)
+    expect(caughtError!.cause).toBeInstanceOf(z.ZodError)
+
+    // Verify we can extract per-field details (what gets stored in error_message)
+    const zodCause = caughtError!.cause as z.ZodError
+    const missingPaths = zodCause.issues.map((i) => i.path.join('.'))
+    expect(missingPaths).toContain('internal_summary_he')
+    expect(missingPaths).toContain('suggested_subject')
+    expect(missingPaths).toContain('suggested_text')
+    expect(missingPaths).toContain('questions_included')
+  })
+
+  it('wraps a Zod error with the raw AI output for workbench analysis schema', () => {
+    let caughtError: SchemaValidationError | undefined
+
+    try {
+      workbenchAnalysisOutputSchema.parse(incompleteAiResponse)
+    } catch (zodErr) {
+      caughtError = new SchemaValidationError(
+        zodErr instanceof Error ? zodErr.message : String(zodErr),
+        incompleteAiResponse,
+        zodErr
+      )
+    }
+
+    expect(caughtError).toBeInstanceOf(SchemaValidationError)
+    expect(caughtError!.rawOutput).toEqual(incompleteAiResponse)
+    expect(caughtError!.cause).toBeInstanceOf(z.ZodError)
+
+    const zodCause = caughtError!.cause as z.ZodError
+    const missingPaths = zodCause.issues.map((i) => i.path.join('.'))
+    expect(missingPaths).toContain('workbench_summary')
+    expect(missingPaths).toContain('case_summary')
+    expect(missingPaths).toContain('recommended_questions')
+  })
+
+  it('produces a clean error_message string from Zod issues', () => {
+    try {
+      emailDraftOutputSchema.parse(incompleteAiResponse)
+    } catch (zodErr) {
+      const wrapped = new SchemaValidationError(
+        zodErr instanceof Error ? zodErr.message : String(zodErr),
+        incompleteAiResponse,
+        zodErr
+      )
+
+      // This is the format stored in case_ai_actions.error_message
+      const cause = wrapped.cause as z.ZodError
+      const errorDetails = cause.issues
+        .map((i) => `${i.path.join('.')}: ${i.message}`)
+        .join('; ')
+
+      expect(errorDetails).toContain('internal_summary_he:')
+      expect(errorDetails).toContain('suggested_subject:')
+      expect(errorDetails).toContain('questions_included:')
+      expect(errorDetails).not.toContain('"code"') // not the raw Zod JSON dump
+    }
   })
 })

@@ -36,17 +36,24 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  const { leadId, conversationId, messageId } = parsed.data
+
+  console.log('[legacy-analyze] Starting analysis', { leadId, conversationId })
+
   const result = await analyzeInboundEmail({
-    leadId: parsed.data.leadId,
-    conversationId: parsed.data.conversationId,
-    messageId: parsed.data.messageId,
+    leadId,
+    conversationId,
+    messageId,
     adminId: user.id,
     trigger: 'manual_refresh',
   })
 
   if (!result.success) {
+    console.error('[legacy-analyze] Analysis failed', { leadId, error: result.error })
     return NextResponse.json({ error: result.error }, { status: 500 })
   }
+
+  console.log('[legacy-analyze] Analysis completed', { leadId, actionId: result.actionId })
 
   return NextResponse.json({
     actionId: result.actionId,

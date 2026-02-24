@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getAiModel } from './openai'
 import { buildSystemPrompt, buildAnalysisPrompt } from './promptTemplates'
 import { loadPromptTemplate, interpolatePrompt } from './promptLoader'
+import { z } from 'zod'
 import { aiAnalysisOutputSchema, type AiAnalysisOutput } from './schemas'
 import {
   computeMissingFields,
@@ -13,6 +14,7 @@ import {
   fetchConversationThread,
   truncateThreadToFit,
   callOpenAIWithSchema,
+  SchemaValidationError,
 } from './shared'
 import type { RequiredField } from '@/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -264,20 +266,41 @@ export async function analyzeInboundEmail(params: {
       aiOutput = result.output
       tokenUsage = result.tokenUsage
     } catch (aiErr) {
-      // Log failed action for auditability
+      const isValidationError = aiErr instanceof SchemaValidationError
+      const errorDetails = isValidationError
+        ? (aiErr.cause instanceof z.ZodError
+            ? aiErr.cause.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+            : aiErr.message)
+        : aiErr instanceof Error ? aiErr.message : 'Unknown AI error'
+
+      console.error('[aiAnalyzer] Analysis failed', {
+        leadId,
+        conversationId,
+        trigger,
+        isValidationError,
+        errorDetails,
+      })
+
+      // Persist raw AI output so we can investigate what the model returned
+      const rawOutput = isValidationError ? aiErr.rawOutput : {}
+
       await serviceClient.from('case_ai_actions').insert({
         lead_id: leadId,
         trigger,
         input_snapshot: inputSnapshot,
-        output: {},
+        output: rawOutput,
         status: 'failed',
         model,
         tokens: tokenUsage,
-        error_message: aiErr instanceof Error ? aiErr.message : 'Unknown AI error',
+        error_message: errorDetails,
         created_by_admin_id: adminId ?? null,
       })
 
-      return { success: false, error: aiErr instanceof Error ? aiErr.message : 'AI analysis failed' }
+      const userMessage = isValidationError
+        ? 'תשובת ה-AI לא הכילה את כל השדות הנדרשים — נסו שנית'
+        : aiErr instanceof Error ? aiErr.message : 'AI analysis failed'
+
+      return { success: false, error: userMessage }
     }
 
     // 5. Persist results

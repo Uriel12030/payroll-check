@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import { z } from 'zod'
 import {
   aiAnalysisOutputSchema,
   workbenchAnalysisOutputSchema,
@@ -66,10 +65,24 @@ describe('aiAnalysisOutputSchema', () => {
     ).not.toThrow()
   })
 
-  it('rejects wrong types (number instead of string for case_summary)', () => {
-    expect(() =>
-      aiAnalysisOutputSchema.parse({ ...validOutput, case_summary: 123 })
-    ).toThrow()
+  it('falls back to default on wrong type (number instead of string)', () => {
+    const result = aiAnalysisOutputSchema.parse({ ...validOutput, case_summary: 123 })
+    expect(result.case_summary).toBe('')
+  })
+
+  it('stringifies nested objects in extracted_facts', () => {
+    const result = aiAnalysisOutputSchema.parse({
+      ...validOutput,
+      extracted_facts: { nested: { a: 1 }, arr: [1, 2, 3], normal: 'hello' },
+    })
+    expect(result.extracted_facts.normal).toBe('hello')
+    expect(result.extracted_facts.nested).toBe('{"a":1}')
+    expect(result.extracted_facts.arr).toBe('[1,2,3]')
+  })
+
+  it('falls back to empty array when risk_flags is wrong type', () => {
+    const result = aiAnalysisOutputSchema.parse({ ...validOutput, risk_flags: 'not_array' })
+    expect(result.risk_flags).toEqual([])
   })
 })
 
@@ -147,13 +160,12 @@ describe('workbenchAnalysisOutputSchema', () => {
     ).not.toThrow()
   })
 
-  it('validates severity enum on risk_flags', () => {
-    expect(() =>
-      workbenchAnalysisOutputSchema.parse({
-        ...validWorkbenchOutput,
-        risk_flags: [{ label_he: 'test', severity: 'critical', playbook_slug: null, source: 'ai' }],
-      })
-    ).toThrow()
+  it('falls back to medium for invalid severity enum', () => {
+    const result = workbenchAnalysisOutputSchema.parse({
+      ...validWorkbenchOutput,
+      risk_flags: [{ label_he: 'test', severity: 'critical', playbook_slug: null, source: 'ai' }],
+    })
+    expect(result.risk_flags[0].severity).toBe('medium')
   })
 
   it('defaults selected to true and answered to false', () => {
@@ -165,6 +177,36 @@ describe('workbenchAnalysisOutputSchema', () => {
     })
     expect(result.recommended_questions[0].selected).toBe(true)
     expect(result.recommended_questions[0].answered).toBe(false)
+  })
+
+  it('falls back to default when wrong type given for string fields', () => {
+    const result = workbenchAnalysisOutputSchema.parse({
+      ...validWorkbenchOutput,
+      workbench_summary: 123,
+      risk_flags: 'not_an_array',
+    })
+    expect(result.workbench_summary).toBe('')
+    expect(result.risk_flags).toEqual([])
+  })
+
+  it('accepts source values beyond just "ai"', () => {
+    const result = workbenchAnalysisOutputSchema.parse({
+      ...validWorkbenchOutput,
+      risk_flags: [
+        { label_he: 'test', severity: 'high', playbook_slug: null, source: 'rule' },
+        { label_he: 'test2', severity: 'low', playbook_slug: null, source: 'manual' },
+      ],
+    })
+    expect(result.risk_flags[0].source).toBe('rule')
+    expect(result.risk_flags[1].source).toBe('manual')
+  })
+
+  it('falls back to "ai" when source is unexpected value', () => {
+    const result = workbenchAnalysisOutputSchema.parse({
+      ...validWorkbenchOutput,
+      risk_flags: [{ label_he: 'test', severity: 'high', playbook_slug: null, source: 'unknown' }],
+    })
+    expect(result.risk_flags[0].source).toBe('ai')
   })
 })
 
@@ -218,6 +260,17 @@ describe('emailDraftOutputSchema', () => {
       emailDraftOutputSchema.parse({ ...validDraftOutput, questions_included: [] })
     ).not.toThrow()
   })
+
+  it('falls back to defaults on wrong types', () => {
+    const result = emailDraftOutputSchema.parse({
+      internal_summary_he: 123,
+      suggested_subject: true,
+      suggested_text: [],
+    })
+    expect(result.internal_summary_he).toBe('')
+    expect(result.suggested_subject).toBe('המשך טיפול בפנייתך')
+    expect(result.suggested_text).toBe('')
+  })
 })
 
 // ---------- Translation Schema ----------
@@ -229,89 +282,31 @@ describe('translationOutputSchema', () => {
     ).not.toThrow()
   })
 
-  it('rejects missing hebrew_translation', () => {
-    expect(() => translationOutputSchema.parse({})).toThrow()
+  it('falls back to empty string when missing', () => {
+    const result = translationOutputSchema.parse({})
+    expect(result.hebrew_translation).toBe('')
   })
 
-  it('rejects non-string hebrew_translation', () => {
-    expect(() => translationOutputSchema.parse({ hebrew_translation: 123 })).toThrow()
+  it('falls back to empty string on wrong type', () => {
+    const result = translationOutputSchema.parse({ hebrew_translation: 123 })
+    expect(result.hebrew_translation).toBe('')
   })
 })
 
 // ---------- SchemaValidationError ----------
 
 describe('SchemaValidationError', () => {
-  it('wraps a Zod error with the raw AI output for type violations', () => {
-    // Wrong types will still fail even with defaults
-    const wrongTypes = {
-      internal_summary_he: 123, // should be string
-      suggested_subject: true,  // should be string
-    }
-
-    let caughtError: SchemaValidationError | undefined
-
-    try {
-      emailDraftOutputSchema.parse(wrongTypes)
-    } catch (zodErr) {
-      caughtError = new SchemaValidationError(
-        zodErr instanceof Error ? zodErr.message : String(zodErr),
-        wrongTypes,
-        zodErr
-      )
-    }
-
-    expect(caughtError).toBeInstanceOf(SchemaValidationError)
-    expect(caughtError!.rawOutput).toEqual(wrongTypes)
-    expect(caughtError!.cause).toBeInstanceOf(z.ZodError)
-  })
-
-  it('wraps a Zod error for workbench schema type violations', () => {
-    const wrongTypes = {
-      workbench_summary: 123, // should be string
-      risk_flags: 'not_an_array', // should be array
-    }
-
-    let caughtError: SchemaValidationError | undefined
-
-    try {
-      workbenchAnalysisOutputSchema.parse(wrongTypes)
-    } catch (zodErr) {
-      caughtError = new SchemaValidationError(
-        zodErr instanceof Error ? zodErr.message : String(zodErr),
-        wrongTypes,
-        zodErr
-      )
-    }
-
-    expect(caughtError).toBeInstanceOf(SchemaValidationError)
-    expect(caughtError!.rawOutput).toEqual(wrongTypes)
-    expect(caughtError!.cause).toBeInstanceOf(z.ZodError)
-  })
-
-  it('produces a clean error_message string from Zod issues', () => {
-    try {
-      emailDraftOutputSchema.parse({ internal_summary_he: 123, suggested_text: true })
-    } catch (zodErr) {
-      const wrapped = new SchemaValidationError(
-        zodErr instanceof Error ? zodErr.message : String(zodErr),
-        { internal_summary_he: 123 },
-        zodErr
-      )
-
-      const cause = wrapped.cause as z.ZodError
-      const errorDetails = cause.issues
-        .map((i) => `${i.path.join('.')}: ${i.message}`)
-        .join('; ')
-
-      expect(errorDetails).toContain('internal_summary_he:')
-      expect(errorDetails).not.toContain('"code"')
-    }
-  })
-
   it('sets name property for proper identification in logs', () => {
     const err = new SchemaValidationError('test', { key: 'value' })
     expect(err.name).toBe('SchemaValidationError')
     expect(err).toBeInstanceOf(Error)
     expect(err.rawOutput).toEqual({ key: 'value' })
+  })
+
+  it('stores cause when provided', () => {
+    const cause = new Error('original')
+    const err = new SchemaValidationError('wrapped', { foo: 'bar' }, cause)
+    expect(err.cause).toBe(cause)
+    expect(err.message).toBe('wrapped')
   })
 })

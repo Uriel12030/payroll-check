@@ -4,38 +4,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 const ALLOWED_EXTS = ['pdf', 'jpg', 'jpeg', 'png']
 const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png']
 const MAX_BYTES = 10 * 1024 * 1024 // 10 MB
-
-// ---------------------------------------------------------------------------
-// In-memory rate limiter — best-effort protection for the anonymous upload
-// endpoint. Works within a single serverless instance; each warm instance
-// maintains its own window, which is sufficient to block scripted abuse.
-// ---------------------------------------------------------------------------
-const RATE_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
-const RATE_MAX_UPLOADS = 10            // per IP per window
-
-const _ratemap = new Map<string, { count: number; resetAt: number }>()
-
-function checkUploadRateLimit(ip: string): { allowed: boolean; retryAfterSec: number } {
-  const now = Date.now()
-
-  // Periodically evict expired entries to prevent unbounded growth
-  if (_ratemap.size > 5000) {
-    Array.from(_ratemap.entries()).forEach(([key, val]) => {
-      if (now > val.resetAt) _ratemap.delete(key)
-    })
-  }
-
-  const entry = _ratemap.get(ip)
-  if (!entry || now > entry.resetAt) {
-    _ratemap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS })
-    return { allowed: true, retryAfterSec: 0 }
-  }
-  if (entry.count >= RATE_MAX_UPLOADS) {
-    return { allowed: false, retryAfterSec: Math.ceil((entry.resetAt - now) / 1000) }
-  }
-  entry.count++
-  return { allowed: true, retryAfterSec: 0 }
-}
+const RATE_MAX_UPLOADS = 10         // per IP per 15-min window (enforced in DB)
 
 /**
  * POST /api/upload
@@ -53,19 +22,26 @@ function checkUploadRateLimit(ip: string): { allowed: boolean; retryAfterSec: nu
  * allowed extensions, allowed MIME types, and a 10 MB size cap.
  */
 export async function POST(request: NextRequest) {
-  // Rate-limit by IP address
+  const supabase = createServiceClient()
+
+  // Shared rate limit via Supabase — consistent across all serverless instances
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
     request.headers.get('x-real-ip') ??
     'unknown'
-  const rl = checkUploadRateLimit(ip)
-  if (!rl.allowed) {
+
+  const { data: allowed, error: rlError } = await supabase.rpc(
+    'check_upload_rate_limit',
+    { p_ip: ip, p_max: RATE_MAX_UPLOADS }
+  )
+
+  if (rlError) {
+    // Fail open on DB error so legitimate uploads aren't broken, but log it
+    console.error('[api/upload] Rate limit check failed:', rlError.message)
+  } else if (allowed === false) {
     return NextResponse.json(
-      { error: 'יותר מדי העלאות. נסו שוב מאוחר יותר.' },
-      {
-        status: 429,
-        headers: { 'Retry-After': String(rl.retryAfterSec) },
-      }
+      { error: 'יותר מדי העלאות. נסו שוב בעוד 15 דקות.' },
+      { status: 429, headers: { 'Retry-After': '900' } }
     )
   }
 
@@ -105,7 +81,6 @@ export async function POST(request: NextRequest) {
 
   const storagePath = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
-  const supabase = createServiceClient()
   const { error } = await supabase.storage
     .from('lead-files')
     .upload(storagePath, file, { contentType: file.type })

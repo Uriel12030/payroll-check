@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 import './globals.css'
 
@@ -18,9 +19,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Read the per-request nonce set by middleware for Content-Security-Policy
+  const nonce = headers().get('x-nonce') ?? ''
+
   return (
     <html lang="he" dir="rtl">
-      <body className="antialiased bg-gray-50 min-h-screen">
+      <head>
+        {/* Expose nonce to Next.js runtime so its own inline scripts get the attribute */}
+        {nonce && <meta property="csp-nonce" content={nonce} />}
+      </head>
+      <body className="antialiased bg-gray-50 min-h-screen" {...(nonce ? { 'data-nonce': nonce } : {})}>
         <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>

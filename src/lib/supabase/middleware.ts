@@ -7,10 +7,15 @@ export async function updateSession(request: NextRequest) {
   const supabaseUrl = getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL')
   const supabaseAnonKey = getRequiredEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
 
-  // Forward the current pathname as a request header so server components
-  // (e.g. AdminLayout) can read it without client-side access.
+  // Generate a per-request nonce for Content-Security-Policy
+  // crypto.randomUUID() is available in both Node.js and Edge runtimes
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+
+  // Forward the current pathname and nonce as request headers so server
+  // components can read them via next/headers without client-side access.
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-pathname', request.nextUrl.pathname)
+  requestHeaders.set('x-nonce', nonce)
 
   let supabaseResponse = NextResponse.next({
     request: { headers: requestHeaders },
@@ -72,8 +77,10 @@ export async function updateSession(request: NextRequest) {
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "style-src 'self' 'unsafe-inline'",
+      // nonce-based script policy — no unsafe-inline or unsafe-eval
+      // 'strict-dynamic' trusts scripts loaded by the nonce-whitelisted scripts
+      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+      "style-src 'self' 'unsafe-inline'", // Tailwind requires inline styles
       "img-src 'self' data: https:",
       "font-src 'self' data:",
       `connect-src 'self' https://*.supabase.co wss://*.supabase.co`,

@@ -72,6 +72,22 @@ export async function POST(request: NextRequest) {
 
   const { from, to, subject, text, html, headers, message_id, email_id } = payload.data
 
+  const serviceClient = createServiceClient()
+
+  // Deduplication: skip if we've already stored this message (retry / replay protection)
+  if (message_id) {
+    const { data: existing } = await serviceClient
+      .from('email_messages')
+      .select('id')
+      .eq('provider_message_id', message_id)
+      .limit(1)
+      .maybeSingle()
+    if (existing) {
+      console.log('[inbound/resend] Duplicate message_id, skipping:', message_id)
+      return NextResponse.json({ ok: true, duplicate: true })
+    }
+  }
+
   // Resend webhooks do NOT include email body — always fetch from Received Emails API
   let resolvedText = text
       let resolvedHtml = html
@@ -83,16 +99,19 @@ export async function POST(request: NextRequest) {
               }
       }
 
-  const serviceClient = createServiceClient()
-
   // Sanitize HTML body, then strip quoted/forwarded thread content
   const sanitizedHtml = resolvedHtml ? sanitizeEmailHtml(resolvedHtml) : null
   const stripped = stripQuotedContent(sanitizedHtml, resolvedText ?? null)
 
-  // Convert headers array to a case-insensitive lookup object (lowercase keys)
+  // Convert headers array to a case-insensitive lookup object (lowercase keys).
+  // Cap name/value lengths to prevent oversized JSONB storage.
   const headersObj = headers
-        ? Object.fromEntries(headers.map((h) => [h.name.toLowerCase(), h.value]))
-          : null
+    ? Object.fromEntries(
+        headers
+          .filter((h) => h.name.length <= 100 && h.value.length <= 2000)
+          .map((h) => [h.name.toLowerCase(), h.value])
+      )
+    : null
 
   // Collect all conversation IDs to store the message in
   const conversationIds = new Set<string>()

@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
 export async function POST(request: NextRequest) {
-    const debugToken = process.env.DEBUG_EMAIL_TOKEN
-    const headerToken = request.headers.get('X-Debug-Token')
+  // Disabled entirely in production — only usable in development/staging
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 })
+  }
+
+  const debugToken = process.env.DEBUG_EMAIL_TOKEN
+  const headerToken = request.headers.get('X-Debug-Token')
 
   if (!debugToken || headerToken !== debugToken) {
-        return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   const RESEND_API_KEY = process.env.RESEND_API_KEY

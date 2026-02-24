@@ -5,6 +5,38 @@ const ALLOWED_EXTS = ['pdf', 'jpg', 'jpeg', 'png']
 const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png']
 const MAX_BYTES = 10 * 1024 * 1024 // 10 MB
 
+// ---------------------------------------------------------------------------
+// In-memory rate limiter — best-effort protection for the anonymous upload
+// endpoint. Works within a single serverless instance; each warm instance
+// maintains its own window, which is sufficient to block scripted abuse.
+// ---------------------------------------------------------------------------
+const RATE_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
+const RATE_MAX_UPLOADS = 10            // per IP per window
+
+const _ratemap = new Map<string, { count: number; resetAt: number }>()
+
+function checkUploadRateLimit(ip: string): { allowed: boolean; retryAfterSec: number } {
+  const now = Date.now()
+
+  // Periodically evict expired entries to prevent unbounded growth
+  if (_ratemap.size > 5000) {
+    Array.from(_ratemap.entries()).forEach(([key, val]) => {
+      if (now > val.resetAt) _ratemap.delete(key)
+    })
+  }
+
+  const entry = _ratemap.get(ip)
+  if (!entry || now > entry.resetAt) {
+    _ratemap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS })
+    return { allowed: true, retryAfterSec: 0 }
+  }
+  if (entry.count >= RATE_MAX_UPLOADS) {
+    return { allowed: false, retryAfterSec: Math.ceil((entry.resetAt - now) / 1000) }
+  }
+  entry.count++
+  return { allowed: true, retryAfterSec: 0 }
+}
+
 /**
  * POST /api/upload
  *
@@ -21,6 +53,22 @@ const MAX_BYTES = 10 * 1024 * 1024 // 10 MB
  * allowed extensions, allowed MIME types, and a 10 MB size cap.
  */
 export async function POST(request: NextRequest) {
+  // Rate-limit by IP address
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    request.headers.get('x-real-ip') ??
+    'unknown'
+  const rl = checkUploadRateLimit(ip)
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'יותר מדי העלאות. נסו שוב מאוחר יותר.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rl.retryAfterSec) },
+      }
+    )
+  }
+
   let formData: FormData
   try {
     formData = await request.formData()

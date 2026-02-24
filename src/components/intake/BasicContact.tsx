@@ -6,6 +6,7 @@ import { t } from '@/lib/i18n/translations'
 import { FieldWrapper, Input } from '@/components/ui/FormField'
 import { createQuickLead } from '@/actions/createQuickLead'
 import { CheckCircle } from 'lucide-react'
+import { trackPixelEvent } from '@/lib/meta-pixel'
 import type { QuickStartData } from '@/components/intake/QuickStart'
 
 interface BasicContactProps {
@@ -63,6 +64,8 @@ export function BasicContact({ quickData }: BasicContactProps) {
         setSubmitting(false)
         return
       }
+      // Fire client-side Lead event (deduped with server CAPI via shared eventID)
+      trackPixelEvent('Lead', {}, { eventID: result.metaEventId });
       setRefCode(result.leadId!.slice(0, 8).toUpperCase())
       setDone(true)
     } catch {

@@ -1,6 +1,7 @@
 'use server'
 
 import { createServiceClient } from '@/lib/supabase/server'
+import { sendLeadEvent } from '@/lib/meta-capi'
 
 export interface QuickLeadInput {
   preferred_language: string
@@ -16,6 +17,7 @@ export interface QuickLeadInput {
 export interface QuickLeadResult {
   success: boolean
   leadId?: string
+  metaEventId?: string
   error?: string
 }
 
@@ -72,5 +74,12 @@ export async function createQuickLead(input: QuickLeadInput): Promise<QuickLeadR
     }
   }
 
-  return { success: true, leadId: data.id }
+  // Fire Meta Conversions API event (non-blocking, never fails the lead save)
+  const metaEventId = await sendLeadEvent({
+    email: input.email,
+    phone: input.phone,
+    sourceUrl: 'https://payroll-check.vercel.app/intake',
+  });
+
+  return { success: true, leadId: data.id, metaEventId: metaEventId ?? undefined }
 }

@@ -83,7 +83,7 @@ export async function updateSession(request: NextRequest) {
       "style-src 'self' 'unsafe-inline'", // Tailwind requires inline styles
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      `connect-src 'self' https://*.supabase.co wss://*.supabase.co`,
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.facebook.com https://*.facebook.net`,
       "frame-ancestors 'none'",
       "object-src 'none'",
       "base-uri 'self'",

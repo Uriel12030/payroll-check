@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { LanguageProvider } from '@/lib/i18n/LanguageContext'
+import { MetaPixel } from '@/components/MetaPixel'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ export default function RootLayout({
         {nonce && <meta property="csp-nonce" content={nonce} />}
       </head>
       <body className="antialiased bg-gray-50 min-h-screen" {...(nonce ? { 'data-nonce': nonce } : {})}>
+        <MetaPixel nonce={nonce} />
         <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>

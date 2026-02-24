@@ -42,3 +42,8 @@ next-env.d.ts
 
 # Claude Code local settings (machine-specific)
 .claude/settings.local.json
+
+# Meta Ads campaign launcher
+scripts/meta-ads/.env
+scripts/meta-ads/node_modules
+scripts/meta-ads/dist

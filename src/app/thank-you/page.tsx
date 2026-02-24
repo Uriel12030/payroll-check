@@ -1,17 +1,19 @@
 import Link from 'next/link'
 import { CheckCircle } from 'lucide-react'
 import type { Metadata } from 'next'
+import { ThankYouPixelEvent } from './ThankYouPixelEvent'
 
 export const metadata: Metadata = {
   title: 'תודה! – Payroll Check',
 }
 
 interface Props {
-  searchParams: { ref?: string }
+  searchParams: { ref?: string; eid?: string }
 }
 
 export default function ThankYouPage({ searchParams }: Props) {
   const ref = searchParams.ref
+  const eid = searchParams.eid
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -48,6 +50,9 @@ export default function ThankYouPage({ searchParams }: Props) {
           </Link>
         </div>
       </div>
+
+      {/* Client component fires the Lead pixel event for dedup with server CAPI */}
+      <ThankYouPixelEvent eventId={eid} />
     </div>
   )
 }

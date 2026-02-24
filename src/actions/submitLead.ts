@@ -3,11 +3,13 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { fullIntakeSchema } from '@/lib/validations/intake'
 import { computeScore } from '@/lib/scoring'
+import { sendLeadEvent } from '@/lib/meta-capi'
 import type { IntakeFormData } from '@/types'
 
 export interface SubmitLeadResult {
   success: boolean
   leadId?: string
+  metaEventId?: string
   error?: string
 }
 
@@ -110,5 +112,12 @@ export async function submitLead(
     }
   }
 
-  return { success: true, leadId }
+  // Fire Meta Conversions API event (non-blocking, never fails the lead save)
+  const metaEventId = await sendLeadEvent({
+    email: data.email,
+    phone: data.phone,
+    sourceUrl: 'https://payroll-check.vercel.app/intake',
+  });
+
+  return { success: true, leadId, metaEventId: metaEventId ?? undefined }
 }

@@ -78,7 +78,9 @@ export function Step7Review() {
         setSubmitting(false)
         return
       }
-      router.push(`/thank-you?ref=${result.leadId?.slice(0, 8).toUpperCase()}`)
+      const qs = new URLSearchParams({ ref: result.leadId?.slice(0, 8).toUpperCase() ?? '' });
+      if (result.metaEventId) qs.set('eid', result.metaEventId);
+      router.push(`/thank-you?${qs.toString()}`)
     } catch (e) {
       console.error(e)
       setSubmitError('אירעה שגיאה בלתי צפויה. נסו שוב.')

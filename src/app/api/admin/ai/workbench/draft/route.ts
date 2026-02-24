@@ -39,19 +39,31 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  const { leadId, conversationId, tone, selectedQuestionIds, selectedDocumentKeys, adminNotes } = parsed.data
+
+  console.log('[draft] Generating email draft', {
+    leadId,
+    tone,
+    questionCount: selectedQuestionIds.length,
+    documentCount: selectedDocumentKeys.length,
+  })
+
   const result = await generateEmailDraft({
-    leadId: parsed.data.leadId,
-    conversationId: parsed.data.conversationId,
-    tone: parsed.data.tone,
-    selectedQuestionIds: parsed.data.selectedQuestionIds,
-    selectedDocumentKeys: parsed.data.selectedDocumentKeys,
-    adminNotes: parsed.data.adminNotes,
+    leadId,
+    conversationId,
+    tone,
+    selectedQuestionIds,
+    selectedDocumentKeys,
+    adminNotes,
     adminId: user.id,
   })
 
   if (!result.success) {
+    console.error('[draft] Draft generation failed', { leadId, error: result.error })
     return NextResponse.json({ error: result.error }, { status: 500 })
   }
+
+  console.log('[draft] Draft generated successfully', { leadId, draftId: result.draftId })
 
   return NextResponse.json({
     draftId: result.draftId,

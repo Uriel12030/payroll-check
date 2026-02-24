@@ -34,14 +34,21 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  const { leadId } = parsed.data
+
+  console.log('[analyze] Starting workbench analysis', { leadId })
+
   const result = await analyzeForWorkbench({
-    leadId: parsed.data.leadId,
+    leadId,
     adminId: user.id,
   })
 
   if (!result.success) {
+    console.error('[analyze] Workbench analysis failed', { leadId, error: result.error })
     return NextResponse.json({ error: result.error }, { status: 500 })
   }
+
+  console.log('[analyze] Workbench analysis completed', { leadId, actionId: result.actionId })
 
   return NextResponse.json({ actionId: result.actionId })
 }

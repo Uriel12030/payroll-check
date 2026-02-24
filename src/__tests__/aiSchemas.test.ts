@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import { z } from 'zod'
 import {
   aiAnalysisOutputSchema,
   workbenchAnalysisOutputSchema,
@@ -23,16 +22,26 @@ describe('aiAnalysisOutputSchema', () => {
     expect(() => aiAnalysisOutputSchema.parse(validOutput)).not.toThrow()
   })
 
-  it('rejects missing case_summary', () => {
-    const withoutSummary = { ...validOutput } as Record<string, unknown>
-    delete withoutSummary.case_summary
-    expect(() => aiAnalysisOutputSchema.parse(withoutSummary)).toThrow()
+  it('defaults missing case_summary to empty string', () => {
+    const without = { ...validOutput } as Record<string, unknown>
+    delete without.case_summary
+    const result = aiAnalysisOutputSchema.parse(without)
+    expect(result.case_summary).toBe('')
   })
 
-  it('rejects missing suggested_reply_text', () => {
-    const withoutReply = { ...validOutput } as Record<string, unknown>
-    delete withoutReply.suggested_reply_text
-    expect(() => aiAnalysisOutputSchema.parse(withoutReply)).toThrow()
+  it('defaults missing suggested_reply_text to empty string', () => {
+    const without = { ...validOutput } as Record<string, unknown>
+    delete without.suggested_reply_text
+    const result = aiAnalysisOutputSchema.parse(without)
+    expect(result.suggested_reply_text).toBe('')
+  })
+
+  it('defaults missing arrays and records', () => {
+    const result = aiAnalysisOutputSchema.parse({})
+    expect(result.risk_flags).toEqual([])
+    expect(result.questions).toEqual([])
+    expect(result.extracted_facts).toEqual({})
+    expect(result.suggested_reply_html).toBeNull()
   })
 
   it('accepts empty arrays for risk_flags and questions', () => {
@@ -54,6 +63,26 @@ describe('aiAnalysisOutputSchema', () => {
         extracted_facts: { employed: true, salary: 10000, notes: null },
       })
     ).not.toThrow()
+  })
+
+  it('falls back to default on wrong type (number instead of string)', () => {
+    const result = aiAnalysisOutputSchema.parse({ ...validOutput, case_summary: 123 })
+    expect(result.case_summary).toBe('')
+  })
+
+  it('stringifies nested objects in extracted_facts', () => {
+    const result = aiAnalysisOutputSchema.parse({
+      ...validOutput,
+      extracted_facts: { nested: { a: 1 }, arr: [1, 2, 3], normal: 'hello' },
+    })
+    expect(result.extracted_facts.normal).toBe('hello')
+    expect(result.extracted_facts.nested).toBe('{"a":1}')
+    expect(result.extracted_facts.arr).toBe('[1,2,3]')
+  })
+
+  it('falls back to empty array when risk_flags is wrong type', () => {
+    const result = aiAnalysisOutputSchema.parse({ ...validOutput, risk_flags: 'not_array' })
+    expect(result.risk_flags).toEqual([])
   })
 })
 
@@ -100,10 +129,22 @@ describe('workbenchAnalysisOutputSchema', () => {
     expect(() => workbenchAnalysisOutputSchema.parse(validWorkbenchOutput)).not.toThrow()
   })
 
-  it('rejects missing workbench_summary', () => {
+  it('defaults missing workbench_summary to empty string', () => {
     const without = { ...validWorkbenchOutput } as Record<string, unknown>
     delete without.workbench_summary
-    expect(() => workbenchAnalysisOutputSchema.parse(without)).toThrow()
+    const result = workbenchAnalysisOutputSchema.parse(without)
+    expect(result.workbench_summary).toBe('')
+  })
+
+  it('defaults all arrays to empty when missing', () => {
+    const result = workbenchAnalysisOutputSchema.parse({})
+    expect(result.active_playbooks).toEqual([])
+    expect(result.recommended_questions).toEqual([])
+    expect(result.risk_flags).toEqual([])
+    expect(result.strength_flags).toEqual([])
+    expect(result.documents_to_request).toEqual([])
+    expect(result.missing_info_he).toEqual([])
+    expect(result.risk_notes_internal_he).toEqual([])
   })
 
   it('accepts empty arrays', () => {
@@ -119,13 +160,12 @@ describe('workbenchAnalysisOutputSchema', () => {
     ).not.toThrow()
   })
 
-  it('validates severity enum on risk_flags', () => {
-    expect(() =>
-      workbenchAnalysisOutputSchema.parse({
-        ...validWorkbenchOutput,
-        risk_flags: [{ label_he: 'test', severity: 'critical', playbook_slug: null, source: 'ai' }],
-      })
-    ).toThrow()
+  it('falls back to medium for invalid severity enum', () => {
+    const result = workbenchAnalysisOutputSchema.parse({
+      ...validWorkbenchOutput,
+      risk_flags: [{ label_he: 'test', severity: 'critical', playbook_slug: null, source: 'ai' }],
+    })
+    expect(result.risk_flags[0].severity).toBe('medium')
   })
 
   it('defaults selected to true and answered to false', () => {
@@ -137,6 +177,36 @@ describe('workbenchAnalysisOutputSchema', () => {
     })
     expect(result.recommended_questions[0].selected).toBe(true)
     expect(result.recommended_questions[0].answered).toBe(false)
+  })
+
+  it('falls back to default when wrong type given for string fields', () => {
+    const result = workbenchAnalysisOutputSchema.parse({
+      ...validWorkbenchOutput,
+      workbench_summary: 123,
+      risk_flags: 'not_an_array',
+    })
+    expect(result.workbench_summary).toBe('')
+    expect(result.risk_flags).toEqual([])
+  })
+
+  it('accepts source values beyond just "ai"', () => {
+    const result = workbenchAnalysisOutputSchema.parse({
+      ...validWorkbenchOutput,
+      risk_flags: [
+        { label_he: 'test', severity: 'high', playbook_slug: null, source: 'rule' },
+        { label_he: 'test2', severity: 'low', playbook_slug: null, source: 'manual' },
+      ],
+    })
+    expect(result.risk_flags[0].source).toBe('rule')
+    expect(result.risk_flags[1].source).toBe('manual')
+  })
+
+  it('falls back to "ai" when source is unexpected value', () => {
+    const result = workbenchAnalysisOutputSchema.parse({
+      ...validWorkbenchOutput,
+      risk_flags: [{ label_he: 'test', severity: 'high', playbook_slug: null, source: 'unknown' }],
+    })
+    expect(result.risk_flags[0].source).toBe('ai')
   })
 })
 
@@ -156,10 +226,21 @@ describe('emailDraftOutputSchema', () => {
     expect(() => emailDraftOutputSchema.parse(validDraftOutput)).not.toThrow()
   })
 
-  it('rejects missing internal_summary_he', () => {
+  it('defaults missing internal_summary_he to empty string', () => {
     const without = { ...validDraftOutput } as Record<string, unknown>
     delete without.internal_summary_he
-    expect(() => emailDraftOutputSchema.parse(without)).toThrow()
+    const result = emailDraftOutputSchema.parse(without)
+    expect(result.internal_summary_he).toBe('')
+  })
+
+  it('defaults missing fields gracefully', () => {
+    const result = emailDraftOutputSchema.parse({})
+    expect(result.internal_summary_he).toBe('')
+    expect(result.suggested_subject).toBe('המשך טיפול בפנייתך')
+    expect(result.suggested_text).toBe('')
+    expect(result.suggested_html).toBeNull()
+    expect(result.hebrew_translation).toBeNull()
+    expect(result.questions_included).toEqual([])
   })
 
   it('accepts suggested_html as string', () => {
@@ -179,6 +260,17 @@ describe('emailDraftOutputSchema', () => {
       emailDraftOutputSchema.parse({ ...validDraftOutput, questions_included: [] })
     ).not.toThrow()
   })
+
+  it('falls back to defaults on wrong types', () => {
+    const result = emailDraftOutputSchema.parse({
+      internal_summary_he: 123,
+      suggested_subject: true,
+      suggested_text: [],
+    })
+    expect(result.internal_summary_he).toBe('')
+    expect(result.suggested_subject).toBe('המשך טיפול בפנייתך')
+    expect(result.suggested_text).toBe('')
+  })
 })
 
 // ---------- Translation Schema ----------
@@ -190,138 +282,31 @@ describe('translationOutputSchema', () => {
     ).not.toThrow()
   })
 
-  it('rejects missing hebrew_translation', () => {
-    expect(() => translationOutputSchema.parse({})).toThrow()
+  it('falls back to empty string when missing', () => {
+    const result = translationOutputSchema.parse({})
+    expect(result.hebrew_translation).toBe('')
   })
 
-  it('rejects non-string hebrew_translation', () => {
-    expect(() => translationOutputSchema.parse({ hebrew_translation: 123 })).toThrow()
+  it('falls back to empty string on wrong type', () => {
+    const result = translationOutputSchema.parse({ hebrew_translation: 123 })
+    expect(result.hebrew_translation).toBe('')
   })
 })
 
-// ---------- SchemaValidationError (incomplete AI response handling) ----------
+// ---------- SchemaValidationError ----------
 
 describe('SchemaValidationError', () => {
-  // Simulates the exact scenario from the original bug: OpenAI returns JSON
-  // missing all draft fields, Zod rejects it, and we wrap the error with the
-  // raw output so callers can persist it for investigation.
-  const incompleteAiResponse = {
-    some_unrelated_key: 'value the model hallucinated',
-  }
-
-  it('wraps a Zod error with the raw AI output for email draft schema', () => {
-    let caughtError: SchemaValidationError | undefined
-
-    try {
-      emailDraftOutputSchema.parse(incompleteAiResponse)
-    } catch (zodErr) {
-      // This mirrors what callOpenAIWithSchema does
-      caughtError = new SchemaValidationError(
-        zodErr instanceof Error ? zodErr.message : String(zodErr),
-        incompleteAiResponse,
-        zodErr
-      )
-    }
-
-    expect(caughtError).toBeInstanceOf(SchemaValidationError)
-    expect(caughtError!.rawOutput).toEqual(incompleteAiResponse)
-    expect(caughtError!.cause).toBeInstanceOf(z.ZodError)
-
-    // Verify we can extract per-field details (what gets stored in error_message)
-    const zodCause = caughtError!.cause as z.ZodError
-    const missingPaths = zodCause.issues.map((i) => i.path.join('.'))
-    expect(missingPaths).toContain('internal_summary_he')
-    expect(missingPaths).toContain('suggested_subject')
-    expect(missingPaths).toContain('suggested_text')
-    expect(missingPaths).toContain('questions_included')
-  })
-
-  it('wraps a Zod error with the raw AI output for workbench analysis schema', () => {
-    let caughtError: SchemaValidationError | undefined
-
-    try {
-      workbenchAnalysisOutputSchema.parse(incompleteAiResponse)
-    } catch (zodErr) {
-      caughtError = new SchemaValidationError(
-        zodErr instanceof Error ? zodErr.message : String(zodErr),
-        incompleteAiResponse,
-        zodErr
-      )
-    }
-
-    expect(caughtError).toBeInstanceOf(SchemaValidationError)
-    expect(caughtError!.rawOutput).toEqual(incompleteAiResponse)
-    expect(caughtError!.cause).toBeInstanceOf(z.ZodError)
-
-    const zodCause = caughtError!.cause as z.ZodError
-    const missingPaths = zodCause.issues.map((i) => i.path.join('.'))
-    expect(missingPaths).toContain('workbench_summary')
-    expect(missingPaths).toContain('case_summary')
-    expect(missingPaths).toContain('recommended_questions')
-  })
-
-  it('produces a clean error_message string from Zod issues', () => {
-    try {
-      emailDraftOutputSchema.parse(incompleteAiResponse)
-    } catch (zodErr) {
-      const wrapped = new SchemaValidationError(
-        zodErr instanceof Error ? zodErr.message : String(zodErr),
-        incompleteAiResponse,
-        zodErr
-      )
-
-      // This is the format stored in case_ai_actions.error_message
-      const cause = wrapped.cause as z.ZodError
-      const errorDetails = cause.issues
-        .map((i) => `${i.path.join('.')}: ${i.message}`)
-        .join('; ')
-
-      expect(errorDetails).toContain('internal_summary_he:')
-      expect(errorDetails).toContain('suggested_subject:')
-      expect(errorDetails).toContain('questions_included:')
-      expect(errorDetails).not.toContain('"code"') // not the raw Zod JSON dump
-    }
-  })
-
-  // Partial response: model returns some fields but not others.
-  // This is the most likely real-world failure mode (e.g. max_tokens truncation).
-  it('reports only the missing fields when AI returns a partial draft', () => {
-    const partialDraft = {
-      internal_summary_he: 'סיכום פנימי',
-      suggested_subject: 'נושא',
-      // missing: suggested_text, suggested_html, hebrew_translation, questions_included
-    }
-
-    let caughtError: SchemaValidationError | undefined
-    try {
-      emailDraftOutputSchema.parse(partialDraft)
-    } catch (zodErr) {
-      caughtError = new SchemaValidationError(
-        zodErr instanceof Error ? zodErr.message : String(zodErr),
-        partialDraft,
-        zodErr
-      )
-    }
-
-    expect(caughtError).toBeInstanceOf(SchemaValidationError)
-    // Raw output preserves the fields the model DID return
-    expect(caughtError!.rawOutput).toHaveProperty('internal_summary_he', 'סיכום פנימי')
-    expect(caughtError!.rawOutput).toHaveProperty('suggested_subject', 'נושא')
-
-    const zodCause = caughtError!.cause as z.ZodError
-    const missingPaths = zodCause.issues.map((i) => i.path.join('.'))
-    // Only the actually-missing fields are flagged
-    expect(missingPaths).toContain('suggested_text')
-    expect(missingPaths).toContain('questions_included')
-    // Fields that were present should NOT appear in the issues
-    expect(missingPaths).not.toContain('internal_summary_he')
-    expect(missingPaths).not.toContain('suggested_subject')
-  })
-
   it('sets name property for proper identification in logs', () => {
     const err = new SchemaValidationError('test', { key: 'value' })
     expect(err.name).toBe('SchemaValidationError')
     expect(err).toBeInstanceOf(Error)
     expect(err.rawOutput).toEqual({ key: 'value' })
+  })
+
+  it('stores cause when provided', () => {
+    const cause = new Error('original')
+    const err = new SchemaValidationError('wrapped', { foo: 'bar' }, cause)
+    expect(err.cause).toBe(cause)
+    expect(err.message).toBe('wrapped')
   })
 })

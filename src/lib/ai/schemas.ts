@@ -10,16 +10,16 @@ export const PROMPT_VERSION = '2.0.0-workbench'
  * Zod schema for validating structured AI model output.
  */
 export const aiAnalysisOutputSchema = z.object({
-  case_summary: z.string().describe('Updated case summary in Hebrew'),
+  case_summary: z.string().default('').describe('Updated case summary in Hebrew'),
   extracted_facts: z.record(
     z.string(),
     z.union([z.string(), z.number(), z.boolean(), z.null()])
-  ).describe('Extracted facts from the conversation'),
-  risk_flags: z.array(z.string()).describe('Risk flags identified'),
-  suggested_subject: z.string().describe('Suggested email subject in Hebrew'),
-  suggested_reply_text: z.string().describe('Suggested email reply body in Hebrew (plain text)'),
-  suggested_reply_html: z.string().nullable().describe('Optional HTML version of the reply'),
-  questions: z.array(z.string()).describe('List of questions to ask the lead'),
+  ).default({}).describe('Extracted facts from the conversation'),
+  risk_flags: z.array(z.string()).default([]).describe('Risk flags identified'),
+  suggested_subject: z.string().default('המשך טיפול בפנייתך').describe('Suggested email subject in Hebrew'),
+  suggested_reply_text: z.string().default('').describe('Suggested email reply body in Hebrew (plain text)'),
+  suggested_reply_html: z.string().nullable().default(null).describe('Optional HTML version of the reply'),
+  questions: z.array(z.string()).default([]).describe('List of questions to ask the lead'),
 })
 
 export type AiAnalysisOutput = z.infer<typeof aiAnalysisOutputSchema>
@@ -54,19 +54,19 @@ export const workbenchDocumentSchema = z.object({
 })
 
 export const workbenchAnalysisOutputSchema = z.object({
-  workbench_summary: z.string().describe('Detailed bullet-point summary in Hebrew'),
-  case_summary: z.string().describe('Short 1-2 sentence summary in Hebrew'),
-  missing_info_he: z.array(z.string()).describe('List of missing info items in Hebrew — what is still needed to properly assess'),
-  risk_notes_internal_he: z.array(z.string()).describe('Internal-only risk notes in Hebrew for lawyer — never sent to lead'),
+  workbench_summary: z.string().default('').describe('Detailed bullet-point summary in Hebrew'),
+  case_summary: z.string().default('').describe('Short 1-2 sentence summary in Hebrew'),
+  missing_info_he: z.array(z.string()).default([]).describe('List of missing info items in Hebrew — what is still needed to properly assess'),
+  risk_notes_internal_he: z.array(z.string()).default([]).describe('Internal-only risk notes in Hebrew for lawyer — never sent to lead'),
   extracted_facts: z.record(
     z.string(),
     z.union([z.string(), z.number(), z.boolean(), z.null()])
-  ),
-  active_playbooks: z.array(z.string()).describe('Playbook slugs relevant to this case'),
-  recommended_questions: z.array(workbenchQuestionSchema).describe('Max 12 questions, grouped by topic'),
-  risk_flags: z.array(workbenchRiskFlagSchema),
-  strength_flags: z.array(workbenchStrengthSchema),
-  documents_to_request: z.array(workbenchDocumentSchema),
+  ).default({}),
+  active_playbooks: z.array(z.string()).default([]).describe('Playbook slugs relevant to this case'),
+  recommended_questions: z.array(workbenchQuestionSchema).default([]).describe('Max 12 questions, grouped by topic'),
+  risk_flags: z.array(workbenchRiskFlagSchema).default([]),
+  strength_flags: z.array(workbenchStrengthSchema).default([]),
+  documents_to_request: z.array(workbenchDocumentSchema).default([]),
 })
 
 export type WorkbenchAnalysisOutput = z.infer<typeof workbenchAnalysisOutputSchema>
@@ -74,12 +74,12 @@ export type WorkbenchAnalysisOutput = z.infer<typeof workbenchAnalysisOutputSche
 // ---------- Email draft schema (dual output) ----------
 
 export const emailDraftOutputSchema = z.object({
-  internal_summary_he: z.string().describe('Hebrew-only internal preview for lawyer'),
-  suggested_subject: z.string().describe('Email subject in the target language'),
-  suggested_text: z.string().describe('Email body plain text in the target language'),
-  suggested_html: z.string().nullable().describe('Optional HTML version in the target language'),
-  hebrew_translation: z.string().nullable().describe('Hebrew translation of external email (null if target is Hebrew)'),
-  questions_included: z.array(z.string()).describe('Question IDs included in the email'),
+  internal_summary_he: z.string().default('').describe('Hebrew-only internal preview for lawyer'),
+  suggested_subject: z.string().default('המשך טיפול בפנייתך').describe('Email subject in the target language'),
+  suggested_text: z.string().default('').describe('Email body plain text in the target language'),
+  suggested_html: z.string().nullable().default(null).describe('Optional HTML version in the target language'),
+  hebrew_translation: z.string().nullable().default(null).describe('Hebrew translation of external email (null if target is Hebrew)'),
+  questions_included: z.array(z.string()).default([]).describe('Question IDs included in the email'),
 })
 
 export type EmailDraftOutput = z.infer<typeof emailDraftOutputSchema>

@@ -10,7 +10,7 @@ import {
 } from './missingFieldsEngine'
 import type { Lead, EmailMessage, RequiredField, AiPlaybook } from '@/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { z } from 'zod'
+import { z } from 'zod'
 
 // ---------- Types ----------
 
@@ -225,46 +225,96 @@ export async function callOpenAIWithSchema<T>(
   const maxTokens = options?.maxTokens ?? parseInt(process.env.AI_MAX_COMPLETION_TOKENS ?? '1500', 10)
   const temperature = options?.temperature ?? 0.2
 
-  const completion = await openai.chat.completions.create({
-    model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    response_format: { type: 'json_object' },
-    temperature,
-    max_tokens: maxTokens,
-  })
+  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt },
+  ]
 
-  const raw = completion.choices[0]?.message?.content
-  if (!raw) throw new Error('Empty AI response')
-
-  const tokenUsage = completion.usage
-    ? { prompt_tokens: completion.usage.prompt_tokens, completion_tokens: completion.usage.completion_tokens }
-    : null
-
-  const parsed = JSON.parse(raw)
-
-  let output: T
-  try {
-    output = schema.parse(parsed)
-  } catch (validationErr) {
-    // Log raw response so we can debug what the model actually returned
-    console.error('[callOpenAIWithSchema] Schema validation failed', {
-      model,
-      rawKeys: Object.keys(parsed),
-      rawResponse: raw.length > 2000 ? raw.slice(0, 2000) + '…' : raw,
-      error: validationErr instanceof Error ? validationErr.message : String(validationErr),
-    })
-    // Wrap with raw output so callers can persist it for investigation
-    throw new SchemaValidationError(
-      validationErr instanceof Error ? validationErr.message : String(validationErr),
-      parsed,
-      validationErr
-    )
+  let totalTokenUsage: { prompt_tokens: number; completion_tokens: number } = {
+    prompt_tokens: 0,
+    completion_tokens: 0,
   }
 
-  return { output, tokenUsage }
+  // Attempt up to 2 times: first try, then one retry with "fix JSON" instruction
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const completion = await openai.chat.completions.create({
+      model,
+      messages,
+      response_format: { type: 'json_object' },
+      temperature,
+      max_tokens: maxTokens,
+    })
+
+    const raw = completion.choices[0]?.message?.content
+    if (!raw) throw new Error('Empty AI response')
+
+    if (completion.usage) {
+      totalTokenUsage.prompt_tokens += completion.usage.prompt_tokens ?? 0
+      totalTokenUsage.completion_tokens += completion.usage.completion_tokens ?? 0
+    }
+
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(raw)
+    } catch (jsonErr) {
+      // JSON parse failure — retry with fix instruction
+      if (attempt === 0) {
+        console.warn('[callOpenAIWithSchema] JSON parse failed, retrying with fix instruction')
+        messages.push({ role: 'assistant', content: raw })
+        messages.push({
+          role: 'user',
+          content: 'התשובה הקודמת לא הייתה JSON תקין. אנא החזר JSON תקין בלבד, ללא טקסט נוסף.',
+        })
+        continue
+      }
+      throw new SchemaValidationError(
+        jsonErr instanceof Error ? jsonErr.message : 'Invalid JSON',
+        {},
+        jsonErr
+      )
+    }
+
+    try {
+      const output = schema.parse(parsed)
+      return { output, tokenUsage: totalTokenUsage }
+    } catch (validationErr) {
+      if (attempt === 0) {
+        // First attempt failed validation — retry with the raw output + fix instruction
+        const missingInfo = validationErr instanceof z.ZodError
+          ? validationErr.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n')
+          : 'Schema validation failed'
+
+        console.warn('[callOpenAIWithSchema] Schema validation failed, retrying', {
+          model,
+          rawKeys: Object.keys(parsed),
+          issues: missingInfo,
+        })
+
+        messages.push({ role: 'assistant', content: raw })
+        messages.push({
+          role: 'user',
+          content: `ה-JSON שהחזרת חסרים בו שדות או שיש בו שגיאות:\n${missingInfo}\n\nאנא החזר JSON מתוקן עם כל השדות הנדרשים. JSON בלבד, ללא טקסט נוסף.`,
+        })
+        continue
+      }
+
+      // Second attempt also failed — throw
+      console.error('[callOpenAIWithSchema] Schema validation failed after retry', {
+        model,
+        rawKeys: Object.keys(parsed),
+        rawResponse: raw.length > 2000 ? raw.slice(0, 2000) + '…' : raw,
+        error: validationErr instanceof Error ? validationErr.message : String(validationErr),
+      })
+      throw new SchemaValidationError(
+        validationErr instanceof Error ? validationErr.message : String(validationErr),
+        parsed,
+        validationErr
+      )
+    }
+  }
+
+  // Should not reach here, but TypeScript needs it
+  throw new Error('Unexpected: retry loop exhausted')
 }
 
 // ---------- Load playbooks ----------

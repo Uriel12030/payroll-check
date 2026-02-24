@@ -282,4 +282,46 @@ describe('SchemaValidationError', () => {
       expect(errorDetails).not.toContain('"code"') // not the raw Zod JSON dump
     }
   })
+
+  // Partial response: model returns some fields but not others.
+  // This is the most likely real-world failure mode (e.g. max_tokens truncation).
+  it('reports only the missing fields when AI returns a partial draft', () => {
+    const partialDraft = {
+      internal_summary_he: 'סיכום פנימי',
+      suggested_subject: 'נושא',
+      // missing: suggested_text, suggested_html, hebrew_translation, questions_included
+    }
+
+    let caughtError: SchemaValidationError | undefined
+    try {
+      emailDraftOutputSchema.parse(partialDraft)
+    } catch (zodErr) {
+      caughtError = new SchemaValidationError(
+        zodErr instanceof Error ? zodErr.message : String(zodErr),
+        partialDraft,
+        zodErr
+      )
+    }
+
+    expect(caughtError).toBeInstanceOf(SchemaValidationError)
+    // Raw output preserves the fields the model DID return
+    expect(caughtError!.rawOutput).toHaveProperty('internal_summary_he', 'סיכום פנימי')
+    expect(caughtError!.rawOutput).toHaveProperty('suggested_subject', 'נושא')
+
+    const zodCause = caughtError!.cause as z.ZodError
+    const missingPaths = zodCause.issues.map((i) => i.path.join('.'))
+    // Only the actually-missing fields are flagged
+    expect(missingPaths).toContain('suggested_text')
+    expect(missingPaths).toContain('questions_included')
+    // Fields that were present should NOT appear in the issues
+    expect(missingPaths).not.toContain('internal_summary_he')
+    expect(missingPaths).not.toContain('suggested_subject')
+  })
+
+  it('sets name property for proper identification in logs', () => {
+    const err = new SchemaValidationError('test', { key: 'value' })
+    expect(err.name).toBe('SchemaValidationError')
+    expect(err).toBeInstanceOf(Error)
+    expect(err.rawOutput).toEqual({ key: 'value' })
+  })
 })

@@ -107,7 +107,7 @@ export function AiPanel({ leadId, conversationId }: Props) {
     }
   }
 
-  const handleSendDraft = async () => {
+  const handleSendDraft = async (editedText: string, editedSubject: string) => {
     if (!draft || !conversationId) return
     setSending(true)
     setError('')
@@ -119,8 +119,8 @@ export function AiPanel({ leadId, conversationId }: Props) {
         body: JSON.stringify({
           leadId,
           conversationId,
-          subject: draft.suggested_subject,
-          text: draft.suggested_text,
+          subject: editedSubject,
+          text: editedText,
           html: draft.suggested_html ?? undefined,
         }),
       })
@@ -130,9 +130,15 @@ export function AiPanel({ leadId, conversationId }: Props) {
         throw new Error(data.error || 'שליחה נכשלה')
       }
 
+      // Track edits if changed
+      const wasEdited = editedText !== draft.suggested_text || editedSubject !== draft.suggested_subject
       await supabase
         .from('case_ai_drafts')
-        .update({ status: 'sent', updated_at: new Date().toISOString() })
+        .update({
+          status: 'sent',
+          ...(wasEdited ? { edited_text: editedText } : {}),
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', draft.id)
 
       setDraft(null)
@@ -144,9 +150,8 @@ export function AiPanel({ leadId, conversationId }: Props) {
     }
   }
 
-  const handleCopy = async () => {
-    if (!draft) return
-    await navigator.clipboard.writeText(draft.suggested_text)
+  const handleCopy = async (text: string) => {
+    await navigator.clipboard.writeText(text)
   }
 
   if (!conversationId) return null
@@ -187,8 +192,8 @@ export function AiPanel({ leadId, conversationId }: Props) {
                   draft={draft}
                   sending={sending}
                   analyzing={analyzing}
-                  onSendDraft={handleSendDraft}
-                  onCopy={handleCopy}
+                  onSendDraft={(editedText, editedSubject) => handleSendDraft(editedText, editedSubject)}
+                  onCopy={(text) => handleCopy(text)}
                   onRefresh={handleAnalyze}
                 />
               )}

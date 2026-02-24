@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, Edit3, Send, Copy, RefreshCw, Trash2, Globe, Languages } from 'lucide-react'
+import { Eye, Edit3, Send, Copy, RefreshCw, Trash2, Globe, Languages, AlertTriangle } from 'lucide-react'
 import type { EmailDraftOutput } from '@/lib/ai/schemas'
 
 interface Props {
@@ -30,10 +30,12 @@ export function DraftPreview({
   onRegenerate,
   onDiscard,
 }: Props) {
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState(!draft.suggested_text.trim())
   const [editedSubject, setEditedSubject] = useState(draft.suggested_subject)
   const [editedText, setEditedText] = useState(draft.suggested_text)
   const [showTranslation, setShowTranslation] = useState(false)
+
+  const bodyEmpty = !editedText.trim()
 
   const handleSend = () => {
     onSend(editedText, null, editedSubject)
@@ -96,7 +98,13 @@ export function DraftPreview({
             rows={10}
             className="form-input resize-none text-sm"
             dir="auto"
+            placeholder="כתבו את גוף האימייל כאן..."
           />
+        ) : bodyEmpty ? (
+          <div className="flex items-center gap-1.5 py-3 text-amber-600 border rounded-lg p-3 bg-amber-50">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <p className="text-sm">גוף האימייל ריק — לחצו &quot;ערוך&quot; להוספת תוכן או &quot;חדש&quot; ליצירת טיוטה מחדש</p>
+          </div>
         ) : (
           <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border rounded-lg p-3 bg-gray-50" dir="auto">
             {editedText}
@@ -147,7 +155,7 @@ export function DraftPreview({
         </button>
         <button
           onClick={handleSend}
-          disabled={sending}
+          disabled={sending || bodyEmpty}
           className="btn-primary text-sm py-2 px-5 flex items-center gap-1.5"
         >
           <Send className="w-4 h-4" />

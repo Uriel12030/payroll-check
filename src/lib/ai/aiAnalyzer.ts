@@ -261,7 +261,7 @@ export async function analyzeInboundEmail(params: {
         systemPrompt,
         userPrompt,
         aiAnalysisOutputSchema,
-        { model, maxTokens: 2500 }
+        { model, maxTokens: 3500 }
       )
       aiOutput = result.output
       tokenUsage = result.tokenUsage

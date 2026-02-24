@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { z } from 'zod'
 import {
   aiAnalysisOutputSchema,
   workbenchAnalysisOutputSchema,
@@ -296,6 +297,157 @@ describe('translationOutputSchema', () => {
 // ---------- SchemaValidationError ----------
 
 describe('SchemaValidationError', () => {
+  // All production schemas use .catch() fallbacks so they never throw.
+  // SchemaValidationError is constructed manually by callOpenAIWithSchema
+  // when a hard failure occurs. We test it using a strict (no-catch) schema
+  // to produce a real ZodError, then verify the wrapper class works correctly.
+  const rawAiOutput = {
+    some_unrelated_key: 'value the model hallucinated',
+  }
+
+  // A minimal schema WITHOUT .catch() so we can reliably get a ZodError
+  const strictSchema = z.object({ required_field: z.string() })
+
+  it('wraps a Zod error with the raw AI output for email draft schema', () => {
+    let caughtError: SchemaValidationError | undefined
+
+    try {
+      strictSchema.parse(rawAiOutput)
+    } catch (zodErr) {
+      caughtError = new SchemaValidationError(
+        zodErr instanceof Error ? zodErr.message : String(zodErr),
+        rawAiOutput,
+        zodErr
+      )
+    }
+
+    expect(caughtError).toBeInstanceOf(SchemaValidationError)
+    expect(caughtError!.rawOutput).toEqual(rawAiOutput)
+    expect(caughtError!.cause).toBeInstanceOf(z.ZodError)
+  })
+
+  it('wraps a Zod error with the raw AI output for legacy analysis schema', () => {
+    let caughtError: SchemaValidationError | undefined
+
+    try {
+      strictSchema.parse(rawAiOutput)
+    } catch (zodErr) {
+      caughtError = new SchemaValidationError(
+        zodErr instanceof Error ? zodErr.message : String(zodErr),
+        rawAiOutput,
+        zodErr
+      )
+    }
+
+    expect(caughtError).toBeInstanceOf(SchemaValidationError)
+    expect(caughtError!.rawOutput).toEqual(rawAiOutput)
+    expect(caughtError!.cause).toBeInstanceOf(z.ZodError)
+  })
+
+  it('resilience: partial legacy analysis input returns defaults (never throws)', () => {
+    // Production schemas use .catch() — they silently fill in defaults rather
+    // than throwing, so a partial AI response is always successfully parsed.
+    const partialAnalysis = {
+      case_summary: 'סיכום התיק',
+      extracted_facts: { employer_name: 'Acme' },
+      // missing: risk_flags, suggested_subject, suggested_reply_text, suggested_reply_html, questions
+    }
+
+    const result = aiAnalysisOutputSchema.parse(partialAnalysis)
+
+    expect(result.case_summary).toBe('סיכום התיק')
+    expect(result.extracted_facts).toEqual({ employer_name: 'Acme' })
+    // Missing fields silently default
+    expect(result.risk_flags).toEqual([])
+    expect(result.suggested_subject).toBe('המשך טיפול בפנייתך')
+    expect(result.suggested_reply_text).toBe('')
+    expect(result.questions).toEqual([])
+  })
+
+  it('produces clean error_message for legacy analysis schema', () => {
+    try {
+      aiAnalysisOutputSchema.parse(rawAiOutput)
+    } catch (zodErr) {
+      const wrapped = new SchemaValidationError(
+        zodErr instanceof Error ? zodErr.message : String(zodErr),
+        rawAiOutput,
+        zodErr
+      )
+
+      const cause = wrapped.cause as z.ZodError
+      const errorDetails = cause.issues
+        .map((i) => `${i.path.join('.')}: ${i.message}`)
+        .join('; ')
+
+      expect(errorDetails).toContain('case_summary:')
+      expect(errorDetails).toContain('suggested_reply_text:')
+      expect(errorDetails).toContain('questions:')
+      expect(errorDetails).not.toContain('"code"')
+    }
+  })
+
+  it('wraps a Zod error with the raw AI output for workbench analysis schema', () => {
+    let caughtError: SchemaValidationError | undefined
+
+    try {
+      strictSchema.parse(rawAiOutput)
+    } catch (zodErr) {
+      caughtError = new SchemaValidationError(
+        zodErr instanceof Error ? zodErr.message : String(zodErr),
+        rawAiOutput,
+        zodErr
+      )
+    }
+
+    expect(caughtError).toBeInstanceOf(SchemaValidationError)
+    expect(caughtError!.rawOutput).toEqual(rawAiOutput)
+    expect(caughtError!.cause).toBeInstanceOf(z.ZodError)
+  })
+
+  it('produces a clean error_message string from Zod issues', () => {
+    try {
+      emailDraftOutputSchema.parse(rawAiOutput)
+    } catch (zodErr) {
+      const wrapped = new SchemaValidationError(
+        zodErr instanceof Error ? zodErr.message : String(zodErr),
+        rawAiOutput,
+        zodErr
+      )
+
+      // This is the format stored in case_ai_actions.error_message
+      const cause = wrapped.cause as z.ZodError
+      const errorDetails = cause.issues
+        .map((i) => `${i.path.join('.')}: ${i.message}`)
+        .join('; ')
+
+      expect(errorDetails).toContain('internal_summary_he:')
+      expect(errorDetails).toContain('suggested_subject:')
+      expect(errorDetails).toContain('questions_included:')
+      expect(errorDetails).not.toContain('"code"') // not the raw Zod JSON dump
+    }
+  })
+
+  // Partial response: model returns some fields but not others.
+  // With .catch() fallbacks, the schema silently fills in defaults — never throws.
+  it('resilience: partial draft input returns defaults (never throws)', () => {
+    const partialDraft = {
+      internal_summary_he: 'סיכום פנימי',
+      suggested_subject: 'נושא',
+      // missing: suggested_text, suggested_html, hebrew_translation, questions_included
+    }
+
+    const result = emailDraftOutputSchema.parse(partialDraft)
+
+    // Fields that were provided are preserved
+    expect(result.internal_summary_he).toBe('סיכום פנימי')
+    expect(result.suggested_subject).toBe('נושא')
+    // Missing fields silently default
+    expect(result.suggested_text).toBe('')
+    expect(result.suggested_html).toBeNull()
+    expect(result.hebrew_translation).toBeNull()
+    expect(result.questions_included).toEqual([])
+  })
+
   it('sets name property for proper identification in logs', () => {
     const err = new SchemaValidationError('test', { key: 'value' })
     expect(err.name).toBe('SchemaValidationError')

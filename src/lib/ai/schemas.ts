@@ -71,7 +71,10 @@ export const workbenchDocumentSchema = z.object({
 })
 
 export const workbenchAnalysisOutputSchema = z.object({
-  workbench_summary: z.string().catch('').describe('Detailed bullet-point summary in Hebrew'),
+  workbench_summary: z.union([
+    z.string(),
+    z.array(z.string()).transform((arr) => arr.filter(Boolean).join('\n')),
+  ]).catch('').describe('Detailed bullet-point summary in Hebrew'),
   case_summary: z.string().catch('').describe('Short 1-2 sentence summary in Hebrew'),
   missing_info_he: z.array(z.string().catch('')).catch([]).describe('List of missing info items in Hebrew'),
   risk_notes_internal_he: z.array(z.string().catch('')).catch([]).describe('Internal-only risk notes in Hebrew for lawyer'),

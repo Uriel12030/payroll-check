@@ -134,6 +134,14 @@ export async function analyzeForWorkbench(params: {
       )
       aiOutput = result.output
       tokenUsage = result.tokenUsage
+
+      if (!aiOutput.workbench_summary?.trim()) {
+        console.warn('[workbenchAnalyzer] workbench_summary is empty after parsing — AI may have returned wrong type or truncated response', {
+          leadId,
+          model,
+          outputKeys: Object.keys(aiOutput),
+        })
+      }
     } catch (aiErr) {
       const isValidationError = aiErr instanceof SchemaValidationError
       const errorDetails = isValidationError

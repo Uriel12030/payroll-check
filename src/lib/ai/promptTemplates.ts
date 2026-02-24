@@ -78,12 +78,12 @@ ${threadStr}
 ענה ב-JSON בלבד, בדיוק בפורמט הזה:
 {
   "case_summary": "סיכום מעודכן של התיק",
-  "extracted_facts": { "key": "ערך שחולץ מהשיחה" },
-  "risk_flags": ["דגל סיכון אם רלוונטי"],
   "suggested_subject": "נושא המייל המוצע",
   "suggested_reply_text": "גוף המייל המוצע בטקסט רגיל",
   "suggested_reply_html": null,
-  "questions": ["שאלה 1", "שאלה 2"]
+  "questions": ["שאלה 1", "שאלה 2"],
+  "risk_flags": ["דגל סיכון אם רלוונטי"],
+  "extracted_facts": { "key": "ערך שחולץ מהשיחה" }
 }
 
 חשוב: ב-questions כלול רק שאלות שמתאימות לשדות החסרים מהרשימה למעלה.`

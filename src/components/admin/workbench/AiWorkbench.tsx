@@ -226,8 +226,10 @@ export function AiWorkbench({ leadId, leadLanguage = 'he' }: Props) {
 
   // ---------- Render ----------
 
-  // Workbench-specific analysis exists when workbench_summary is non-empty
-  const hasWorkbenchAnalysis = !!aiState?.workbench_summary?.trim()
+  // Workbench-specific analysis exists when workbench_summary or recommended_questions are present
+  const hasWorkbenchAnalysis =
+    !!aiState?.workbench_summary?.trim() ||
+    (aiState?.recommended_questions?.length ?? 0) > 0
   // Basic AI state exists (e.g., from email tab analysis) when last_analyzed_at is set
   const hasBasicAnalysis = !!aiState?.last_analyzed_at && !hasWorkbenchAnalysis
 

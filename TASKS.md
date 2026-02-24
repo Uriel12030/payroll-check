@@ -4,6 +4,8 @@
 - [ ] Run migration 007 (last_interaction_at + is_read) in Supabase Dashboard
 - [ ] Run migration 008 (AI workbench tables) in Supabase Dashboard
 - [ ] Run migration 009 (workbench enhancements: missing_info_he, risk_notes_internal_he) in Supabase Dashboard
+- [ ] Run migration 010 (ai_prompt_templates table + 11 seed templates) in Supabase Dashboard
+- [ ] Run migration 011 (upload_rate_limits table + check_upload_rate_limit PG function) in Supabase Dashboard
 - [ ] Enable Realtime for `case_ai_drafts` and `case_ai_state` tables in Supabase Dashboard
 - [ ] Fix Vercel env var: `EMAIL_FROM` — change `oreply@mvp.ashchar.com` → `noreply@ashchar.com`
 - [ ] Add `ashchar.com` as verified sending domain in Resend (currently only `mvp.ashchar.com`)

@@ -7,6 +7,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getAiModel } from './openai'
 import { buildEmailDraftSystemPrompt, buildEmailDraftPrompt } from './promptTemplates'
 import { loadPromptTemplate, interpolatePrompt } from './promptLoader'
+import { z } from 'zod'
 import {
   emailDraftOutputSchema,
   type EmailDraftOutput,
@@ -171,6 +172,18 @@ export async function generateEmailDraft(params: {
       aiOutput = result.output
       tokenUsage = result.tokenUsage
     } catch (aiErr) {
+      const isValidationError = aiErr instanceof z.ZodError
+      const errorDetails = isValidationError
+        ? aiErr.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+        : aiErr instanceof Error ? aiErr.message : 'Unknown AI error'
+
+      console.error('[emailDrafter] Draft generation failed', {
+        leadId,
+        tone,
+        isValidationError,
+        errorDetails,
+      })
+
       await serviceClient.from('case_ai_actions').insert({
         lead_id: leadId,
         trigger: 'email_draft',
@@ -179,11 +192,17 @@ export async function generateEmailDraft(params: {
         status: 'failed',
         model,
         tokens: tokenUsage,
-        error_message: aiErr instanceof Error ? aiErr.message : 'Unknown AI error',
+        error_message: errorDetails,
         created_by_admin_id: adminId ?? null,
         prompt_version: promptVersion,
       })
-      return { success: false, error: aiErr instanceof Error ? aiErr.message : 'Email draft generation failed' }
+
+      // Return a clean user-facing message instead of the raw Zod dump
+      const userMessage = isValidationError
+        ? 'תשובת ה-AI לא הכילה את כל השדות הנדרשים — נסו שנית'
+        : aiErr instanceof Error ? aiErr.message : 'Email draft generation failed'
+
+      return { success: false, error: userMessage }
     }
 
     // 8. Audit log

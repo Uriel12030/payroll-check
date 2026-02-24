@@ -232,7 +232,20 @@ export async function callOpenAIWithSchema<T>(
     : null
 
   const parsed = JSON.parse(raw)
-  const output = schema.parse(parsed)
+
+  let output: T
+  try {
+    output = schema.parse(parsed)
+  } catch (validationErr) {
+    // Log raw response so we can debug what the model actually returned
+    console.error('[callOpenAIWithSchema] Schema validation failed', {
+      model,
+      rawKeys: Object.keys(parsed),
+      rawResponse: raw.length > 2000 ? raw.slice(0, 2000) + '…' : raw,
+      error: validationErr instanceof Error ? validationErr.message : String(validationErr),
+    })
+    throw validationErr
+  }
 
   return { output, tokenUsage }
 }

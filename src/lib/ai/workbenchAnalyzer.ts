@@ -6,6 +6,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getAiModel } from './openai'
 import { buildWorkbenchSystemPrompt, buildWorkbenchAnalysisPrompt, formatPlaybooksSection } from './promptTemplates'
 import { loadPromptTemplate, interpolatePrompt } from './promptLoader'
+import { z } from 'zod'
 import {
   workbenchAnalysisOutputSchema,
   type WorkbenchAnalysisOutput,
@@ -133,6 +134,17 @@ export async function analyzeForWorkbench(params: {
       aiOutput = result.output
       tokenUsage = result.tokenUsage
     } catch (aiErr) {
+      const isValidationError = aiErr instanceof z.ZodError
+      const errorDetails = isValidationError
+        ? aiErr.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+        : aiErr instanceof Error ? aiErr.message : 'Unknown AI error'
+
+      console.error('[workbenchAnalyzer] Analysis failed', {
+        leadId,
+        isValidationError,
+        errorDetails,
+      })
+
       await serviceClient.from('case_ai_actions').insert({
         lead_id: leadId,
         trigger: 'workbench_analysis',
@@ -141,11 +153,16 @@ export async function analyzeForWorkbench(params: {
         status: 'failed',
         model,
         tokens: tokenUsage,
-        error_message: aiErr instanceof Error ? aiErr.message : 'Unknown AI error',
+        error_message: errorDetails,
         created_by_admin_id: adminId ?? null,
         prompt_version: promptVersion,
       })
-      return { success: false, error: aiErr instanceof Error ? aiErr.message : 'Workbench analysis failed' }
+
+      const userMessage = isValidationError
+        ? 'תשובת ה-AI לא הכילה את כל השדות הנדרשים — נסו שנית'
+        : aiErr instanceof Error ? aiErr.message : 'Workbench analysis failed'
+
+      return { success: false, error: userMessage }
     }
 
     // 7. Merge facts and compute missing fields

@@ -153,3 +153,30 @@ export interface DocumentRequest {
   priority: 'high' | 'medium' | 'low'
   status: 'pending' | 'received' | 'not_applicable'
 }
+
+// ---------- Prompt template types ----------
+
+export type PromptCategory = 'system' | 'user' | 'tone_instruction'
+
+export interface PromptVariable {
+  name: string
+  description: string
+}
+
+export interface PromptTemplate {
+  id: string
+  slug: string
+  category: PromptCategory
+  scope: string
+  language: string
+  title: string
+  description: string | null
+  content: string
+  variables: PromptVariable[]
+  version: number
+  is_active: boolean
+  is_default: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}

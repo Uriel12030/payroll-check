@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { getAiModel } from './openai'
 import { buildSystemPrompt, buildAnalysisPrompt } from './promptTemplates'
+import { loadPromptTemplate, interpolatePrompt } from './promptLoader'
 import { aiAnalysisOutputSchema, type AiAnalysisOutput } from './schemas'
 import {
   computeMissingFields,
@@ -192,29 +193,51 @@ export async function analyzeInboundEmail(params: {
 
     // 3. Compute missing fields and build prompts (with token budget guard)
     const missingFields = computeMissingFields(requiredFields, knownFacts)
-    const systemPrompt = buildSystemPrompt()
+
+    // Try DB prompts, fall back to hardcoded
+    const dbSystemPrompt = await loadPromptTemplate({ slug: 'legacy_system' })
+    const systemPrompt = dbSystemPrompt?.content ?? buildSystemPrompt()
+
+    const dbUserPrompt = await loadPromptTemplate({ slug: 'legacy_analysis' })
+
+    const buildUserPromptStr = (threadArr: typeof thread) => {
+      if (dbUserPrompt) {
+        const factsStr = Object.entries(knownFacts)
+          .filter(([, v]) => v !== null && v !== undefined && v !== '')
+          .map(([k, v]) => `  ${k}: ${v}`)
+          .join('\n')
+        const missingStr = missingFields
+          .map((f) => `  - ${f.label} (${f.key}): "${f.question}"`)
+          .join('\n')
+        const threadStr = threadArr
+          .map((m) => `[${m.direction === 'inbound' ? 'פונה' : 'מערכת'}] (${m.occurred_at}):\n${m.text}`)
+          .join('\n\n---\n\n')
+        return interpolatePrompt(dbUserPrompt.content, {
+          leadName: lead.full_name,
+          caseType,
+          currentSummary: summary || '(אין סיכום עדיין)',
+          factsStr: factsStr || '(אין עובדות עדיין)',
+          missingStr: missingStr || '(אין מידע חסר)',
+          threadStr,
+        })
+      }
+      return buildAnalysisPrompt({
+        leadName: lead.full_name,
+        caseType,
+        currentSummary: summary,
+        knownFacts,
+        missingFields,
+        conversationThread: threadArr,
+      })
+    }
 
     // Build a preliminary prompt without thread to measure non-thread size
-    const promptWithoutThread = buildAnalysisPrompt({
-      leadName: lead.full_name,
-      caseType,
-      currentSummary: summary,
-      knownFacts,
-      missingFields,
-      conversationThread: [],
-    })
+    const promptWithoutThread = buildUserPromptStr([])
 
     // Truncate thread to fit within token budget
     const fittedThread = truncateThreadToFit(thread, promptWithoutThread)
 
-    const userPrompt = buildAnalysisPrompt({
-      leadName: lead.full_name,
-      caseType,
-      currentSummary: summary,
-      knownFacts,
-      missingFields,
-      conversationThread: fittedThread,
-    })
+    const userPrompt = buildUserPromptStr(fittedThread)
 
     const inputSnapshot = {
       leadId,

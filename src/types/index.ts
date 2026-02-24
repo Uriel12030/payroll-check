@@ -17,5 +17,8 @@ export type {
   WorkbenchRiskFlag,
   WorkbenchStrength,
   DocumentRequest,
+  PromptCategory,
+  PromptVariable,
+  PromptTemplate,
 } from './ai'
 export type { IntakeFormData } from './intake'

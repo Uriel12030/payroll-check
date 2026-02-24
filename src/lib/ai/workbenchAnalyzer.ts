@@ -4,7 +4,8 @@
  */
 import { createServiceClient } from '@/lib/supabase/server'
 import { getAiModel } from './openai'
-import { buildWorkbenchSystemPrompt, buildWorkbenchAnalysisPrompt } from './promptTemplates'
+import { buildWorkbenchSystemPrompt, buildWorkbenchAnalysisPrompt, formatPlaybooksSection } from './promptTemplates'
+import { loadPromptTemplate, interpolatePrompt } from './promptLoader'
 import {
   workbenchAnalysisOutputSchema,
   type WorkbenchAnalysisOutput,
@@ -55,30 +56,59 @@ export async function analyzeForWorkbench(params: {
     // 4. Load playbooks
     const playbooks = await loadPlaybooks(serviceClient)
 
-    // 5. Build prompts
-    const systemPrompt = buildWorkbenchSystemPrompt(playbooks)
+    // 5. Build prompts (try DB first, fall back to hardcoded)
+    const playbooksSection = formatPlaybooksSection(playbooks)
+    const dbSystemPrompt = await loadPromptTemplate({ slug: 'workbench_system' })
+    const systemPrompt = dbSystemPrompt
+      ? interpolatePrompt(dbSystemPrompt.content, { playbooksSection })
+      : buildWorkbenchSystemPrompt(playbooks)
 
-    const promptWithoutThread = buildWorkbenchAnalysisPrompt({
-      leadName: lead.full_name,
-      caseType,
-      currentSummary: summary,
-      knownFacts,
-      missingFields: computeMissingFields(requiredFields, knownFacts),
-      conversationThread: [],
-      playbooks,
-    })
+    const missingFields = computeMissingFields(requiredFields, knownFacts)
+    const factsStr = Object.entries(knownFacts)
+      .filter(([, v]) => v !== null && v !== undefined && v !== '')
+      .map(([k, v]) => `  ${k}: ${v}`)
+      .join('\n')
+    const missingStr = missingFields
+      .map((f) => `  - ${f.label} (${f.key}): "${f.question}"`)
+      .join('\n')
+    const playbookSlugs = playbooks.map((p) => `"${p.slug}"`).join(', ')
 
+    const dbUserPrompt = await loadPromptTemplate({ slug: 'workbench_analysis' })
+
+    // Build user prompt — try DB, fall back to hardcoded
+    const buildUserPromptStr = (thread: typeof allThreads) => {
+      if (dbUserPrompt) {
+        const threadStr = thread
+          .map((m) => `[${m.direction === 'inbound' ? 'פונה' : 'מערכת'}] (${m.occurred_at}):\n${m.text}`)
+          .join('\n\n---\n\n')
+        return interpolatePrompt(dbUserPrompt.content, {
+          leadName: lead.full_name,
+          caseType,
+          currentSummary: summary || '(אין סיכום עדיין — זהו ניתוח ראשון)',
+          factsStr: factsStr || '(אין עובדות עדיין)',
+          missingStr: missingStr || '(אין מידע חסר)',
+          threadStr: threadStr || '(אין שיחות עדיין)',
+          playbookSlugs,
+        })
+      }
+      return buildWorkbenchAnalysisPrompt({
+        leadName: lead.full_name,
+        caseType,
+        currentSummary: summary,
+        knownFacts,
+        missingFields,
+        conversationThread: thread,
+        playbooks,
+      })
+    }
+
+    const promptWithoutThread = buildUserPromptStr([])
     const fittedThread = truncateThreadToFit(allThreads, promptWithoutThread)
+    const userPrompt = buildUserPromptStr(fittedThread)
 
-    const userPrompt = buildWorkbenchAnalysisPrompt({
-      leadName: lead.full_name,
-      caseType,
-      currentSummary: summary,
-      knownFacts,
-      missingFields: computeMissingFields(requiredFields, knownFacts),
-      conversationThread: fittedThread,
-      playbooks,
-    })
+    const promptVersion = dbSystemPrompt
+      ? `3.0.0-managed-v${dbSystemPrompt.version}`
+      : PROMPT_VERSION
 
     const inputSnapshot = {
       leadId,
@@ -113,7 +143,7 @@ export async function analyzeForWorkbench(params: {
         tokens: tokenUsage,
         error_message: aiErr instanceof Error ? aiErr.message : 'Unknown AI error',
         created_by_admin_id: adminId ?? null,
-        prompt_version: PROMPT_VERSION,
+        prompt_version: promptVersion,
       })
       return { success: false, error: aiErr instanceof Error ? aiErr.message : 'Workbench analysis failed' }
     }
@@ -134,7 +164,7 @@ export async function analyzeForWorkbench(params: {
         model,
         tokens: tokenUsage,
         created_by_admin_id: adminId ?? null,
-        prompt_version: PROMPT_VERSION,
+        prompt_version: promptVersion,
       })
       .select('id')
       .single()

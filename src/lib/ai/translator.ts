@@ -7,6 +7,7 @@ import { getAiModel } from './openai'
 import { buildTranslationPrompt } from './promptTemplates'
 import { translationOutputSchema, PROMPT_VERSION } from './schemas'
 import { callOpenAIWithSchema } from './shared'
+import { loadPromptTemplate, interpolatePrompt } from './promptLoader'
 
 export interface TranslationResult {
   success: boolean
@@ -26,8 +27,18 @@ export async function translateToHebrew(params: {
   try {
     const model = getAiModel()
 
-    const systemPrompt = 'אתה מתרגם מקצועי. תרגם את הטקסט לעברית. שמור על משמעות, טון, ומבנה. פלט: JSON בלבד.'
-    const userPrompt = buildTranslationPrompt(text)
+    // Try DB prompts first
+    const dbSystemPrompt = await loadPromptTemplate({ slug: 'translation_system' })
+    const systemPrompt = dbSystemPrompt?.content ?? 'אתה מתרגם מקצועי. תרגם את הטקסט לעברית. שמור על משמעות, טון, ומבנה. פלט: JSON בלבד.'
+
+    const dbUserPrompt = await loadPromptTemplate({ slug: 'translation' })
+    const userPrompt = dbUserPrompt
+      ? interpolatePrompt(dbUserPrompt.content, { text })
+      : buildTranslationPrompt(text)
+
+    const promptVersion = dbSystemPrompt
+      ? `3.0.0-managed-v${dbSystemPrompt.version}`
+      : PROMPT_VERSION
 
     const { output, tokenUsage } = await callOpenAIWithSchema(
       systemPrompt,
@@ -48,7 +59,7 @@ export async function translateToHebrew(params: {
         model,
         tokens: tokenUsage,
         created_by_admin_id: adminId ?? null,
-        prompt_version: PROMPT_VERSION,
+        prompt_version: promptVersion,
       })
       .select('id')
       .single()

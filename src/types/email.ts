@@ -12,6 +12,8 @@ export interface EmailConversation {
   created_at: string
 }
 
+export type EmailMessageStatus = 'draft' | 'sent' | 'failed'
+
 export interface EmailMessage {
   id: string
   conversation_id: string
@@ -27,4 +29,11 @@ export interface EmailMessage {
   occurred_at: string
   created_by_admin_id: string | null
   created_at: string
+  // AI Workbench fields (migration 008)
+  status: EmailMessageStatus
+  language: string | null
+  hebrew_translation: string | null
+  ai_metadata: Record<string, unknown> | null
+  sent_at: string | null
+  updated_at: string
 }

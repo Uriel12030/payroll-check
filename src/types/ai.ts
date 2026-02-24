@@ -57,3 +57,63 @@ export interface CaseAiAction {
   created_by_admin_id: string | null
   created_at: string
 }
+
+// ── AI Workbench types ──
+
+export interface WorkbenchQuestion {
+  id: string
+  text_he: string
+  rubric: string
+  default_selected: boolean
+}
+
+export interface WorkbenchDocument {
+  id: string
+  text_he: string
+  rubric: string
+  priority: 'high' | 'medium' | 'low'
+}
+
+export interface WorkbenchOutput {
+  summary_he: string
+  missing_info_he: string[]
+  recommended_questions: WorkbenchQuestion[]
+  documents_checklist: WorkbenchDocument[]
+  risk_notes_internal_he: string[]
+}
+
+export interface EmailDraftOutput {
+  internal_preview_he: {
+    subject_he: string
+    body_he: string
+  }
+  external_email: {
+    language: 'he' | 'en' | 'ru' | 'am'
+    subject: string
+    body: string
+    tone: 'friendly' | 'formal' | 'firm'
+  }
+  external_email_he_translation: {
+    subject_he: string
+    body_he: string
+  }
+}
+
+export type Rubric =
+  | 'שעות נוספות'
+  | 'הלנת שכר / אי תשלום'
+  | 'פנסיה והפרשות'
+  | 'פיצויי פיטורים'
+  | 'חופשה/מחלה'
+  | 'שימוע/פיטורים שלא כדין'
+  | 'הרעת תנאים'
+
+export const RUBRIC_LIST: Rubric[] = [
+  'שעות נוספות',
+  'הלנת שכר / אי תשלום',
+  'פנסיה והפרשות',
+  'פיצויי פיטורים',
+  'חופשה/מחלה',
+  'שימוע/פיטורים שלא כדין',
+  'הרעת תנאים',
+]

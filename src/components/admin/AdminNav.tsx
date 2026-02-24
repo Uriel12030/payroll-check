@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { LogOut } from 'lucide-react'
 
@@ -11,6 +11,7 @@ interface AdminNavProps {
 
 export function AdminNav({ userEmail }: AdminNavProps) {
   const router = useRouter()
+  const pathname = usePathname()
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -19,6 +20,11 @@ export function AdminNav({ userEmail }: AdminNavProps) {
     router.refresh()
   }
 
+  const navLinks = [
+    { href: '/admin/leads', label: 'פניות' },
+    { href: '/admin/prompts', label: 'פרומפטים' },
+  ]
+
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -26,10 +32,23 @@ export function AdminNav({ userEmail }: AdminNavProps) {
           <Link href="/admin/leads" className="font-bold text-blue-600 text-lg">
             Payroll Check
           </Link>
-          <nav className="flex items-center gap-4 text-sm text-gray-600">
-            <Link href="/admin/leads" className="hover:text-blue-600 transition-colors">
-              פניות
-            </Link>
+          <nav className="flex items-center gap-4 text-sm">
+            {navLinks.map((link) => {
+              const isActive = pathname.startsWith(link.href)
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`transition-colors ${
+                    isActive
+                      ? 'text-blue-600 font-medium'
+                      : 'text-gray-600 hover:text-blue-600'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              )
+            })}
           </nav>
         </div>
 

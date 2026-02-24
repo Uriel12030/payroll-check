@@ -94,9 +94,9 @@ ${threadStr}
 // ============================================================
 
 /**
- * Build playbooks section for prompts.
+ * Build playbooks section for prompts. Exported for use by promptLoader.
  */
-function formatPlaybooksSection(playbooks: AiPlaybook[]): string {
+export function formatPlaybooksSection(playbooks: AiPlaybook[]): string {
   return playbooks.map((pb) => {
     const questions = pb.questions
       .map((q) => `    - ${q.label_he} (${q.key}, עדיפות: ${q.priority})`)

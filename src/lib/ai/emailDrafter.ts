@@ -6,6 +6,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { getAiModel } from './openai'
 import { buildEmailDraftSystemPrompt, buildEmailDraftPrompt } from './promptTemplates'
+import { loadPromptTemplate, interpolatePrompt } from './promptLoader'
 import {
   emailDraftOutputSchema,
   type EmailDraftOutput,
@@ -79,32 +80,70 @@ export async function generateEmailDraft(params: {
       thread = await fetchConversationThread(serviceClient, conversationId)
     }
 
-    // 6. Build prompts
-    const systemPrompt = buildEmailDraftSystemPrompt(tone, language)
+    // 6. Build prompts (try DB first, fall back to hardcoded)
+    const LANGUAGE_NAMES: Record<string, string> = { he: 'עברית', en: 'אנגלית', ru: 'רוסית', am: 'אמהרית' }
+    const langName = LANGUAGE_NAMES[language] ?? language
 
-    const promptWithoutThread = buildEmailDraftPrompt({
-      leadName: lead.full_name,
-      caseType,
-      language,
-      knownFacts,
-      selectedQuestions,
-      selectedDocuments,
-      conversationThread: [],
-      adminNotes,
-    })
+    // System prompt: load tone from DB too
+    const dbTone = await loadPromptTemplate({ slug: `tone_${tone}` })
+    const toneInstruction = dbTone?.content ?? (tone === 'formal' ? 'רשמי ומקצועי. פנייה בגוף שלישי, שפה עניינית ומדויקת.' : tone === 'firm' ? 'תקיף אך מכבד. הדגש שהמידע חשוב ודחוף לטיפול.' : 'ידידותי, חם, אמפתי. פנייה בגוף שני, שפה פשוטה וברורה.')
 
+    const dbSystemPrompt = await loadPromptTemplate({ slug: 'email_draft_system' })
+    const systemPrompt = dbSystemPrompt
+      ? interpolatePrompt(dbSystemPrompt.content, { toneInstruction, langName })
+      : buildEmailDraftSystemPrompt(tone, language)
+
+    const dbUserPrompt = await loadPromptTemplate({ slug: 'email_draft_user' })
+
+    const buildUserPromptStr = (threadArr: typeof thread) => {
+      if (dbUserPrompt) {
+        const factsStr = Object.entries(knownFacts)
+          .filter(([, v]) => v !== null && v !== undefined && v !== '')
+          .map(([k, v]) => `  ${k}: ${v}`)
+          .join('\n')
+        const questionsStr = selectedQuestions
+          .map((q) => `  - [${q.id}] ${q.text_he}${q.playbook_slug ? ` (${q.playbook_slug})` : ''}`)
+          .join('\n')
+        const docsStr = selectedDocuments
+          .map((d) => `  - ${d.label_he} (${d.key})`)
+          .join('\n')
+        const threadStr = threadArr
+          .map((m) => `[${m.direction === 'inbound' ? 'פונה' : 'מערכת'}] (${m.occurred_at}):\n${m.text}`)
+          .join('\n\n---\n\n')
+        const adminNotesSection = adminNotes ? `## הערות עו"ד\n${adminNotes}` : ''
+        const hebrewTranslationExample = language === 'he' ? 'null' : '"תרגום עברי של האימייל"'
+
+        return interpolatePrompt(dbUserPrompt.content, {
+          leadName: lead.full_name,
+          caseType,
+          langName,
+          factsStr: factsStr || '(אין עובדות עדיין)',
+          questionsStr: questionsStr || '(אין שאלות נבחרות)',
+          docsStr: docsStr || '(אין מסמכים לבקש)',
+          threadStr: threadStr || '(אין שיחה קודמת — זהו מייל ראשון)',
+          adminNotesSection,
+          hebrewTranslationExample,
+        })
+      }
+      return buildEmailDraftPrompt({
+        leadName: lead.full_name,
+        caseType,
+        language,
+        knownFacts,
+        selectedQuestions,
+        selectedDocuments,
+        conversationThread: threadArr,
+        adminNotes,
+      })
+    }
+
+    const promptWithoutThread = buildUserPromptStr([])
     const fittedThread = truncateThreadToFit(thread, promptWithoutThread)
+    const userPrompt = buildUserPromptStr(fittedThread)
 
-    const userPrompt = buildEmailDraftPrompt({
-      leadName: lead.full_name,
-      caseType,
-      language,
-      knownFacts,
-      selectedQuestions,
-      selectedDocuments,
-      conversationThread: fittedThread,
-      adminNotes,
-    })
+    const promptVersion = dbSystemPrompt
+      ? `3.0.0-managed-v${dbSystemPrompt.version}`
+      : PROMPT_VERSION
 
     const inputSnapshot = {
       leadId,
@@ -142,7 +181,7 @@ export async function generateEmailDraft(params: {
         tokens: tokenUsage,
         error_message: aiErr instanceof Error ? aiErr.message : 'Unknown AI error',
         created_by_admin_id: adminId ?? null,
-        prompt_version: PROMPT_VERSION,
+        prompt_version: promptVersion,
       })
       return { success: false, error: aiErr instanceof Error ? aiErr.message : 'Email draft generation failed' }
     }
@@ -159,7 +198,7 @@ export async function generateEmailDraft(params: {
         model,
         tokens: tokenUsage,
         created_by_admin_id: adminId ?? null,
-        prompt_version: PROMPT_VERSION,
+        prompt_version: promptVersion,
       })
       .select('id')
       .single()
@@ -193,7 +232,7 @@ export async function generateEmailDraft(params: {
         hebrew_translation: aiOutput.hebrew_translation,
         ai_metadata: {
           model,
-          prompt_version: PROMPT_VERSION,
+          prompt_version: promptVersion,
           tokens: tokenUsage,
           generated_at: new Date().toISOString(),
         },

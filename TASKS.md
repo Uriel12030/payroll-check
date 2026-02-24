@@ -1,7 +1,7 @@
 # Open Tasks
 
 ## Pending Infrastructure
-- [ ] Run migration 007 (email read/unread tracking) in Supabase Dashboard
+- [ ] Run migration 007 (last_interaction_at + is_read) in Supabase Dashboard
 - [ ] Run migration 008 (AI workbench tables) in Supabase Dashboard
 - [ ] Run migration 009 (workbench enhancements: missing_info_he, risk_notes_internal_he) in Supabase Dashboard
 - [ ] Enable Realtime for `case_ai_drafts` and `case_ai_state` tables in Supabase Dashboard

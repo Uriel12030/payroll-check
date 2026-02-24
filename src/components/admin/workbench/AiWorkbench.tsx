@@ -226,6 +226,11 @@ export function AiWorkbench({ leadId, leadLanguage = 'he' }: Props) {
 
   // ---------- Render ----------
 
+  // Workbench-specific analysis exists when workbench_summary is non-empty
+  const hasWorkbenchAnalysis = !!aiState?.workbench_summary?.trim()
+  // Basic AI state exists (e.g., from email tab analysis) when last_analyzed_at is set
+  const hasBasicAnalysis = !!aiState?.last_analyzed_at && !hasWorkbenchAnalysis
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -253,7 +258,7 @@ export function AiWorkbench({ leadId, leadLanguage = 'he' }: Props) {
           ) : (
             <Sparkles className="w-4 h-4" />
           )}
-          {analyzing ? 'מנתח...' : aiState?.last_analyzed_at ? 'נתח מחדש' : 'נתח תיק'}
+          {analyzing ? 'מנתח...' : hasWorkbenchAnalysis ? 'נתח מחדש' : 'נתח תיק'}
         </button>
       </div>
 
@@ -273,8 +278,8 @@ export function AiWorkbench({ leadId, leadLanguage = 'he' }: Props) {
         </div>
       )}
 
-      {/* No data yet */}
-      {!aiState?.last_analyzed_at && (
+      {/* No data yet — no analysis of any kind */}
+      {!hasWorkbenchAnalysis && !hasBasicAnalysis && (
         <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
           <Brain className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 text-sm">לחצו &quot;נתח תיק&quot; כדי להתחיל</p>
@@ -282,8 +287,20 @@ export function AiWorkbench({ leadId, leadLanguage = 'he' }: Props) {
         </div>
       )}
 
-      {/* Analysis results */}
-      {aiState?.last_analyzed_at && (
+      {/* Basic analysis exists (from email tab) but no full workbench analysis */}
+      {hasBasicAnalysis && (
+        <div className="bg-blue-50 rounded-xl border border-blue-200 p-6 text-center">
+          <Brain className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+          <p className="text-sm text-blue-800 font-medium mb-1">קיים ניתוח בסיסי מלשונית האימיילים</p>
+          {aiState?.summary && (
+            <p className="text-sm text-blue-700 mb-3" dir="rtl">{aiState.summary}</p>
+          )}
+          <p className="text-xs text-blue-600">לחצו &quot;נתח תיק&quot; לניתוח מלא עם שאלות, מסמכים וסיכונים</p>
+        </div>
+      )}
+
+      {/* Full workbench analysis results */}
+      {hasWorkbenchAnalysis && aiState && (
         <>
           {/* Summary + playbook tabs */}
           <WorkbenchSummary

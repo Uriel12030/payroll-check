@@ -261,7 +261,7 @@ export async function analyzeInboundEmail(params: {
         systemPrompt,
         userPrompt,
         aiAnalysisOutputSchema,
-        { model }
+        { model, maxTokens: 2500 }
       )
       aiOutput = result.output
       tokenUsage = result.tokenUsage
@@ -301,6 +301,16 @@ export async function analyzeInboundEmail(params: {
         : aiErr instanceof Error ? aiErr.message : 'AI analysis failed'
 
       return { success: false, error: userMessage }
+    }
+
+    // 4b. Warn if critical fields are empty (likely truncated response)
+    if (!aiOutput.suggested_reply_text?.trim()) {
+      console.warn('[aiAnalyzer] suggested_reply_text is empty — AI response may have been truncated', {
+        leadId,
+        conversationId,
+        model,
+        outputKeys: Object.keys(aiOutput),
+      })
     }
 
     // 5. Persist results

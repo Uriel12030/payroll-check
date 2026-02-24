@@ -20,6 +20,7 @@ import {
   truncateThreadToFit,
   callOpenAIWithSchema,
   loadPlaybooks,
+  SchemaValidationError,
 } from './shared'
 import type { DocumentRequest } from '@/types'
 
@@ -134,9 +135,11 @@ export async function analyzeForWorkbench(params: {
       aiOutput = result.output
       tokenUsage = result.tokenUsage
     } catch (aiErr) {
-      const isValidationError = aiErr instanceof z.ZodError
+      const isValidationError = aiErr instanceof SchemaValidationError
       const errorDetails = isValidationError
-        ? aiErr.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+        ? (aiErr.cause instanceof z.ZodError
+            ? aiErr.cause.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+            : aiErr.message)
         : aiErr instanceof Error ? aiErr.message : 'Unknown AI error'
 
       console.error('[workbenchAnalyzer] Analysis failed', {
@@ -145,11 +148,14 @@ export async function analyzeForWorkbench(params: {
         errorDetails,
       })
 
+      // Persist raw AI output so we can investigate what the model returned
+      const rawOutput = isValidationError ? aiErr.rawOutput : {}
+
       await serviceClient.from('case_ai_actions').insert({
         lead_id: leadId,
         trigger: 'workbench_analysis',
         input_snapshot: inputSnapshot,
-        output: {},
+        output: rawOutput,
         status: 'failed',
         model,
         tokens: tokenUsage,

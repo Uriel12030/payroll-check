@@ -19,6 +19,7 @@ import {
   fetchConversationThread,
   truncateThreadToFit,
   callOpenAIWithSchema,
+  SchemaValidationError,
 } from './shared'
 import type { EmailTone, WorkbenchQuestion } from '@/types'
 
@@ -172,9 +173,11 @@ export async function generateEmailDraft(params: {
       aiOutput = result.output
       tokenUsage = result.tokenUsage
     } catch (aiErr) {
-      const isValidationError = aiErr instanceof z.ZodError
+      const isValidationError = aiErr instanceof SchemaValidationError
       const errorDetails = isValidationError
-        ? aiErr.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+        ? (aiErr.cause instanceof z.ZodError
+            ? aiErr.cause.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+            : aiErr.message)
         : aiErr instanceof Error ? aiErr.message : 'Unknown AI error'
 
       console.error('[emailDrafter] Draft generation failed', {
@@ -184,11 +187,14 @@ export async function generateEmailDraft(params: {
         errorDetails,
       })
 
+      // Persist raw AI output so we can investigate what the model returned
+      const rawOutput = isValidationError ? aiErr.rawOutput : {}
+
       await serviceClient.from('case_ai_actions').insert({
         lead_id: leadId,
         trigger: 'email_draft',
         input_snapshot: inputSnapshot,
-        output: {},
+        output: rawOutput,
         status: 'failed',
         model,
         tokens: tokenUsage,

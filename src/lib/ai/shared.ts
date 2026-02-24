@@ -197,6 +197,18 @@ export function truncateThreadToFit(
   return result
 }
 
+// ---------- Schema validation error (carries raw AI response for DB logging) ----------
+
+export class SchemaValidationError extends Error {
+  public readonly rawOutput: Record<string, unknown>
+
+  constructor(message: string, rawOutput: Record<string, unknown>, public readonly cause?: unknown) {
+    super(message)
+    this.name = 'SchemaValidationError'
+    this.rawOutput = rawOutput
+  }
+}
+
 // ---------- Generic OpenAI call with Zod validation ----------
 
 export async function callOpenAIWithSchema<T>(
@@ -244,7 +256,12 @@ export async function callOpenAIWithSchema<T>(
       rawResponse: raw.length > 2000 ? raw.slice(0, 2000) + '…' : raw,
       error: validationErr instanceof Error ? validationErr.message : String(validationErr),
     })
-    throw validationErr
+    // Wrap with raw output so callers can persist it for investigation
+    throw new SchemaValidationError(
+      validationErr instanceof Error ? validationErr.message : String(validationErr),
+      parsed,
+      validationErr
+    )
   }
 
   return { output, tokenUsage }

@@ -3,6 +3,16 @@ import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/lib/auth/isAdmin'
 import type { Lead } from '@/types'
 
+function escapeHtml(value: string | null | undefined): string {
+  if (!value) return ''
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -56,40 +66,40 @@ export async function GET(
 
 <h2>פרטי קשר</h2>
 <table>
-  <tr><td>שם מלא</td><td>${l.full_name}</td></tr>
-  <tr><td>טלפון</td><td>${l.phone}</td></tr>
-  <tr><td>אימייל</td><td>${l.email}</td></tr>
-  <tr><td>עיר</td><td>${l.city}</td></tr>
+  <tr><td>שם מלא</td><td>${escapeHtml(l.full_name)}</td></tr>
+  <tr><td>טלפון</td><td>${escapeHtml(l.phone)}</td></tr>
+  <tr><td>אימייל</td><td>${escapeHtml(l.email)}</td></tr>
+  <tr><td>עיר</td><td>${escapeHtml(l.city)}</td></tr>
 </table>
 
 <h2>פרטי העסקה</h2>
 <table>
-  <tr><td>מעסיק</td><td>${l.employer_name}</td></tr>
-  <tr><td>תפקיד</td><td>${l.role_title}</td></tr>
-  <tr><td>סוג העסקה</td><td>${l.employment_type}</td></tr>
-  <tr><td>תחילת עבודה</td><td>${l.start_date}</td></tr>
-  <tr><td>סיום עבודה</td><td>${l.end_date ?? 'עדיין מועסק'}</td></tr>
+  <tr><td>מעסיק</td><td>${escapeHtml(l.employer_name)}</td></tr>
+  <tr><td>תפקיד</td><td>${escapeHtml(l.role_title)}</td></tr>
+  <tr><td>סוג העסקה</td><td>${escapeHtml(l.employment_type)}</td></tr>
+  <tr><td>תחילת עבודה</td><td>${escapeHtml(l.start_date)}</td></tr>
+  <tr><td>סיום עבודה</td><td>${escapeHtml(l.end_date) || 'עדיין מועסק'}</td></tr>
   <tr><td>שכר ברוטו ממוצע</td><td>₪${Number(l.avg_monthly_salary).toLocaleString()}</td></tr>
 </table>
 
 <h2>שעות עבודה</h2>
 <table>
-  <tr><td>שעות נוספות שולמו</td><td>${l.paid_overtime}</td></tr>
-  <tr><td>הערכת שעות נוספות</td><td>${l.overtime_hours_estimate ?? '—'}</td></tr>
-  <tr><td>מעקב נוכחות</td><td>${l.attendance_tracking}</td></tr>
+  <tr><td>שעות נוספות שולמו</td><td>${escapeHtml(l.paid_overtime)}</td></tr>
+  <tr><td>הערכת שעות נוספות</td><td>${escapeHtml(l.overtime_hours_estimate) || '—'}</td></tr>
+  <tr><td>מעקב נוכחות</td><td>${escapeHtml(l.attendance_tracking)}</td></tr>
 </table>
 
 <h2>הטבות וזכויות</h2>
 <table>
-  <tr><td>פנסיה</td><td>${l.pension_provided}</td></tr>
-  <tr><td>החזר נסיעות</td><td>${l.travel_reimbursement}</td></tr>
-  <tr><td>בעיית חופשה</td><td>${l.vacation_balance_issue}</td></tr>
-  <tr><td>בעיית מחלה</td><td>${l.sick_days_issue}</td></tr>
+  <tr><td>פנסיה</td><td>${escapeHtml(l.pension_provided)}</td></tr>
+  <tr><td>החזר נסיעות</td><td>${escapeHtml(l.travel_reimbursement)}</td></tr>
+  <tr><td>בעיית חופשה</td><td>${escapeHtml(l.vacation_balance_issue)}</td></tr>
+  <tr><td>בעיית מחלה</td><td>${escapeHtml(l.sick_days_issue)}</td></tr>
 </table>
 
 <h2>סיכום בדיקה</h2>
 <p>ציון: <span class="score">${l.lead_score ?? '—'}</span> / 100</p>
-${l.admin_notes ? `<h2>הערות מנהל</h2><p>${l.admin_notes}</p>` : ''}
+${l.admin_notes ? `<h2>הערות מנהל</h2><p>${escapeHtml(l.admin_notes)}</p>` : ''}
 
 <div class="disclaimer">
   <strong>הצהרה משפטית:</strong> הבדיקה המוצגת בדוח זה היא ממוחשבת בלבד ואינה מהווה ייעוץ משפטי מכל סוג שהוא.

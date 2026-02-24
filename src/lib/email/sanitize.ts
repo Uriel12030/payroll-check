@@ -15,19 +15,24 @@ export function sanitizeEmailHtml(dirty: string): string {
     allowedAttributes: {
       'a': ['href', 'title', 'target', 'rel'],
       'img': ['src', 'alt', 'width', 'height'],
-      'td': ['colspan', 'rowspan'],
-      'th': ['colspan', 'rowspan'],
-      '*': ['style', 'class', 'id'],
+      'td': ['colspan', 'rowspan', 'style'],
+      'th': ['colspan', 'rowspan', 'style'],
+      'div': ['style', 'class', 'id'],
+      'span': ['style', 'class', 'id'],
+      'p': ['style', 'class', 'id'],
+      // class/id only on everything else — no global style attribute
+      '*': ['class', 'id'],
     },
     allowedSchemes: ['http', 'https', 'mailto'],
     allowedStyles: {
       '*': {
-        'color': [/.*/],
-        'background-color': [/.*/],
-        'font-size': [/.*/],
-        'text-align': [/.*/],
-        'margin': [/.*/],
-        'padding': [/.*/],
+        // Only safe, explicit values — no wildcard /.*/
+        'color': [/^#[0-9a-fA-F]{3,6}$/, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/, /^[a-z]+$/i],
+        'background-color': [/^#[0-9a-fA-F]{3,6}$/, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/, /^[a-z]+$/i],
+        'font-size': [/^\d+(?:\.\d+)?(?:px|pt|em|rem|%)$/],
+        'text-align': [/^(?:left|right|center|justify)$/],
+        'margin': [/^[\d.]+(?:px|em|rem|pt|%)?(?:\s+[\d.]+(?:px|em|rem|pt|%)?){0,3}$/, /^auto$/],
+        'padding': [/^[\d.]+(?:px|em|rem|pt|%)?(?:\s+[\d.]+(?:px|em|rem|pt|%)?){0,3}$/],
       },
     },
     // Force all links to open in new tab

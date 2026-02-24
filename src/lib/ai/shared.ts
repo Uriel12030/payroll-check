@@ -230,7 +230,7 @@ export async function callOpenAIWithSchema<T>(
     { role: 'user', content: userPrompt },
   ]
 
-  let totalTokenUsage: { prompt_tokens: number; completion_tokens: number } = {
+  const totalTokenUsage: { prompt_tokens: number; completion_tokens: number } = {
     prompt_tokens: 0,
     completion_tokens: 0,
   }

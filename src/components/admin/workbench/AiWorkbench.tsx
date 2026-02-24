@@ -107,6 +107,7 @@ export function AiWorkbench({ leadId, leadLanguage = 'he' }: Props) {
   const handleGenerateDraft = async () => {
     setDrafting(true)
     setError('')
+    setSendSuccess(false)
 
     try {
       const res = await fetch('/api/admin/ai/workbench/draft', {
@@ -121,12 +122,16 @@ export function AiWorkbench({ leadId, leadLanguage = 'he' }: Props) {
         }),
       })
 
+      const data = await res.json()
+
       if (!res.ok) {
-        const data = await res.json()
         throw new Error(data.error || 'יצירת טיוטה נכשלה')
       }
 
-      const data = await res.json()
+      if (!data.draft) {
+        throw new Error('השרת לא החזיר טיוטה — נסו שוב')
+      }
+
       setDraft(data.draft)
       setDraftId(data.draftId)
     } catch (err) {

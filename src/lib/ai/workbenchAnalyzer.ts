@@ -136,11 +136,24 @@ export async function analyzeForWorkbench(params: {
       tokenUsage = result.tokenUsage
 
       if (!aiOutput.workbench_summary?.trim()) {
-        console.warn('[workbenchAnalyzer] workbench_summary is empty after parsing — AI may have returned wrong type or truncated response', {
+        console.warn('[workbenchAnalyzer] workbench_summary is empty, retrying with explicit instruction', {
           leadId,
           model,
           outputKeys: Object.keys(aiOutput),
         })
+        const retryResult = await callOpenAIWithSchema(
+          systemPrompt,
+          userPrompt + '\n\n⚠️ חשוב מאוד: השדה workbench_summary חייב להכיל סיכום מפורט בעברית. אל תשאיר אותו ריק. כתוב סיכום מלא עם נקודות עיקריות לגבי התיק.',
+          workbenchAnalysisOutputSchema,
+          { model, maxTokens: 3000 }
+        )
+        aiOutput = retryResult.output
+        if (retryResult.tokenUsage && tokenUsage) {
+          tokenUsage = {
+            prompt_tokens: (tokenUsage.prompt_tokens ?? 0) + (retryResult.tokenUsage.prompt_tokens ?? 0),
+            completion_tokens: (tokenUsage.completion_tokens ?? 0) + (retryResult.tokenUsage.completion_tokens ?? 0),
+          }
+        }
       }
     } catch (aiErr) {
       const isValidationError = aiErr instanceof SchemaValidationError

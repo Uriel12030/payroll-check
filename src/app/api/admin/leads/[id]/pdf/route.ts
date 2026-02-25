@@ -42,13 +42,26 @@ export async function GET(
   const refId = params.id.slice(0, 8).toUpperCase()
   const date = new Date(l.created_at).toLocaleDateString('he-IL')
 
+  const valueLabels: Record<string, string> = {
+    yes: 'כן', no: 'לא', unknown: 'לא ידוע',
+    full_time: 'משרה מלאה', part_time: 'משרה חלקית', freelance: 'פרילנסר',
+    contractor: 'קבלן', other: 'אחר',
+    resigned: 'התפטרות', fired: 'פיטורים', terminated: 'פיטורים',
+    mutual: 'הסכמה הדדית', contract_end: 'סיום חוזה', still_employed: 'עדיין מועסק',
+  }
+  const label = (v: string | null | undefined) => v ? (valueLabels[v] ?? escapeHtml(v)) : '—'
+
   // Generate simple HTML-based PDF content
   const html = `<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8">
 <title>Payroll Check – דוח פנייה ${refId}</title>
+<script>
+  window.onload = function() { window.print(); }
+<\/script>
 <style>
+  @media print { .no-print { display: none; } }
   body { font-family: Arial, sans-serif; direction: rtl; padding: 40px; color: #1a1a1a; }
   h1 { color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
   h2 { color: #374151; margin-top: 24px; margin-bottom: 8px; font-size: 14px; text-transform: uppercase; }
@@ -76,7 +89,7 @@ export async function GET(
 <table>
   <tr><td>מעסיק</td><td>${escapeHtml(l.employer_name)}</td></tr>
   <tr><td>תפקיד</td><td>${escapeHtml(l.role_title)}</td></tr>
-  <tr><td>סוג העסקה</td><td>${escapeHtml(l.employment_type)}</td></tr>
+  <tr><td>סוג העסקה</td><td>${label(l.employment_type)}</td></tr>
   <tr><td>תחילת עבודה</td><td>${escapeHtml(l.start_date)}</td></tr>
   <tr><td>סיום עבודה</td><td>${escapeHtml(l.end_date) || 'עדיין מועסק'}</td></tr>
   <tr><td>שכר ברוטו ממוצע</td><td>₪${Number(l.avg_monthly_salary).toLocaleString()}</td></tr>
@@ -84,17 +97,17 @@ export async function GET(
 
 <h2>שעות עבודה</h2>
 <table>
-  <tr><td>שעות נוספות שולמו</td><td>${escapeHtml(l.paid_overtime)}</td></tr>
+  <tr><td>שעות נוספות שולמו</td><td>${label(l.paid_overtime)}</td></tr>
   <tr><td>הערכת שעות נוספות</td><td>${escapeHtml(l.overtime_hours_estimate) || '—'}</td></tr>
-  <tr><td>מעקב נוכחות</td><td>${escapeHtml(l.attendance_tracking)}</td></tr>
+  <tr><td>מעקב נוכחות</td><td>${label(l.attendance_tracking)}</td></tr>
 </table>
 
 <h2>הטבות וזכויות</h2>
 <table>
-  <tr><td>פנסיה</td><td>${escapeHtml(l.pension_provided)}</td></tr>
-  <tr><td>החזר נסיעות</td><td>${escapeHtml(l.travel_reimbursement)}</td></tr>
-  <tr><td>בעיית חופשה</td><td>${escapeHtml(l.vacation_balance_issue)}</td></tr>
-  <tr><td>בעיית מחלה</td><td>${escapeHtml(l.sick_days_issue)}</td></tr>
+  <tr><td>פנסיה</td><td>${label(l.pension_provided)}</td></tr>
+  <tr><td>החזר נסיעות</td><td>${label(l.travel_reimbursement)}</td></tr>
+  <tr><td>בעיית חופשה</td><td>${label(l.vacation_balance_issue)}</td></tr>
+  <tr><td>בעיית מחלה</td><td>${label(l.sick_days_issue)}</td></tr>
 </table>
 
 <h2>סיכום בדיקה</h2>
@@ -112,7 +125,6 @@ ${l.admin_notes ? `<h2>הערות מנהל</h2><p>${escapeHtml(l.admin_notes)}</
   return new NextResponse(html, {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Content-Disposition': `attachment; filename="lead-${refId}.html"`,
     },
   })
 }

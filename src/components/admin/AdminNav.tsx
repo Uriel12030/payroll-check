@@ -23,6 +23,7 @@ export function AdminNav({ userEmail }: AdminNavProps) {
   const navLinks = [
     { href: '/admin/leads', label: 'פניות' },
     { href: '/admin/prompts', label: 'פרומפטים' },
+    { href: '/admin/dashboard', label: 'אנליטיקס' },
   ]
 
   return (

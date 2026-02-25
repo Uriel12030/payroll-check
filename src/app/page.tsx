@@ -5,6 +5,7 @@ import { CheckCircle, Shield, Clock, FileText } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { t } from '@/lib/i18n/translations'
 import { LanguageSelector } from '@/components/LanguageSelector'
+import { trackEvent } from '@/lib/analytics'
 
 const benefitIcons = [Clock, Shield, FileText, CheckCircle] as const
 const benefitKeys = [
@@ -62,6 +63,7 @@ export default function HomePage() {
           </p>
           <Link
             href="/intake"
+            onClick={() => trackEvent('cta_click', lang)}
             className="inline-block bg-blue-600 text-white text-lg font-bold px-10 py-4 rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
           >
             {t('hero.cta', lang)}
@@ -128,6 +130,7 @@ export default function HomePage() {
           </p>
           <Link
             href="/intake"
+            onClick={() => trackEvent('cta_click', lang)}
             className="inline-block bg-white text-blue-600 font-bold text-lg px-10 py-4 rounded-xl hover:bg-blue-50 transition-colors"
           >
             {t('cta.button', lang)}

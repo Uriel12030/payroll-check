@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { t, LANGUAGES, Language } from '@/lib/i18n/translations'
+import { trackEvent } from '@/lib/analytics'
 
 export interface QuickStartData {
   years_with_employer_bucket: string
@@ -25,6 +26,14 @@ export function QuickStart({ onComplete, onBack }: QuickStartProps) {
   const [empType, setEmpType] = useState<string>('')
   const [issues, setIssues] = useState<string[]>([])
   const [emailLang, setEmailLang] = useState<Language>(lang)
+  const formStartFired = useRef(false)
+
+  const fireFormStart = () => {
+    if (!formStartFired.current) {
+      formStartFired.current = true
+      trackEvent('form_start', lang)
+    }
+  }
 
   const canNext = () => {
     if (qStep === 1) return !!yearsBucket
@@ -74,7 +83,7 @@ export function QuickStart({ onComplete, onBack }: QuickStartProps) {
   }) => (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => { fireFormStart(); onClick() }}
       className={`w-full text-start px-4 py-3 rounded-lg border transition-all text-sm ${
         selected
           ? 'border-blue-500 bg-blue-50 text-blue-700 font-medium'

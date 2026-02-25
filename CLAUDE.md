@@ -33,6 +33,7 @@ src/
   app/             # Next.js App Router pages + API routes
     admin/         # Admin dashboard (login, leads, lead detail, health)
     api/           # Route handlers (admin email/ai, inbound webhook, upload, debug)
+    auth/callback/ # OAuth callback route (Google SSO → exchanges code → /admin/leads)
     intake/        # Public intake wizard
   components/
     admin/         # Admin components

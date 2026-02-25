@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Mail, ChevronLeft, ChevronRight } from 'lucide-react'
+import { LeadsFilter } from '@/components/admin/LeadsFilter'
 import type { Lead, LeadFlags } from '@/types'
 import type { Metadata } from 'next'
 
@@ -140,42 +141,11 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
       </div>
 
       {/* Filters */}
-      <form method="get" className="bg-white rounded-xl border border-gray-200 p-4 mb-6 flex gap-4 flex-wrap">
-        <input
-          name="q"
-          defaultValue={searchParams.q}
-          placeholder="חיפוש לפי שם, אימייל, טלפון..."
-          className="form-input max-w-xs"
-        />
-        <select
-          name="status"
-          className="form-input bg-white max-w-[160px]"
-        >
-          <option value="all" selected={(searchParams.status ?? 'all') === 'all'}>כל הסטטוסים</option>
-          <option value="new" selected={searchParams.status === 'new'}>חדש</option>
-          <option value="reviewing" selected={searchParams.status === 'reviewing'}>בבדיקה</option>
-          <option value="accepted" selected={searchParams.status === 'accepted'}>מקובל</option>
-          <option value="rejected" selected={searchParams.status === 'rejected'}>נדחה</option>
-        </select>
-        <select
-          name="lang"
-          className="form-input bg-white max-w-[160px]"
-        >
-          <option value="all" selected={(searchParams.lang ?? 'all') === 'all'}>כל השפות</option>
-          <option value="he" selected={searchParams.lang === 'he'}>עברית</option>
-          <option value="en" selected={searchParams.lang === 'en'}>English</option>
-          <option value="ru" selected={searchParams.lang === 'ru'}>Русский</option>
-          <option value="am" selected={searchParams.lang === 'am'}>አማርኛ</option>
-        </select>
-        <button type="submit" className="btn-primary py-2 px-5 text-sm">
-          חפש
-        </button>
-        {(searchParams.status || searchParams.q || searchParams.lang) && (
-          <Link href="/admin/leads" className="btn-secondary py-2 px-4 text-sm">
-            נקה
-          </Link>
-        )}
-      </form>
+      <LeadsFilter
+        initialQ={searchParams.q}
+        initialStatus={searchParams.status}
+        initialLang={searchParams.lang}
+      />
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

@@ -172,6 +172,24 @@ export async function generateEmailDraft(params: {
       )
       aiOutput = result.output
       tokenUsage = result.tokenUsage
+
+      // Post-validation: ensure suggested_text is not empty (AI sometimes returns empty string)
+      if (!aiOutput.suggested_text || aiOutput.suggested_text.trim() === '') {
+        console.warn('[emailDrafter] suggested_text is empty, retrying with explicit instruction', { leadId })
+        const retryResult = await callOpenAIWithSchema(
+          systemPrompt,
+          userPrompt + '\n\n⚠️ חשוב מאוד: השדה suggested_text חייב להכיל את גוף האימייל המלא. אל תשאיר אותו ריק בשום סיבה. כתוב אימייל מלא עם פנייה, גוף, שאלות רלוונטיות לסוג התיק, ובקשת מסמכים.',
+          emailDraftOutputSchema,
+          { model, maxTokens: 2500 }
+        )
+        aiOutput = retryResult.output
+        if (retryResult.tokenUsage && tokenUsage) {
+          tokenUsage = {
+            prompt_tokens: (tokenUsage.prompt_tokens ?? 0) + (retryResult.tokenUsage.prompt_tokens ?? 0),
+            completion_tokens: (tokenUsage.completion_tokens ?? 0) + (retryResult.tokenUsage.completion_tokens ?? 0),
+          }
+        }
+      }
     } catch (aiErr) {
       const isValidationError = aiErr instanceof SchemaValidationError
       const errorDetails = isValidationError

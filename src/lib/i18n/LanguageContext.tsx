@@ -22,8 +22,19 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    const validLangs = ['he', 'en', 'ru', 'am']
+
+    // URL ?lang= takes priority (e.g. from Facebook ad links)
+    const urlLang = new URLSearchParams(window.location.search).get('lang')
+    if (urlLang && validLangs.includes(urlLang)) {
+      setLangState(urlLang as Language)
+      localStorage.setItem(STORAGE_KEY, urlLang)
+      setMounted(true)
+      return
+    }
+
     const stored = localStorage.getItem(STORAGE_KEY) as Language | null
-    if (stored && ['he', 'en', 'ru', 'am'].includes(stored)) {
+    if (stored && validLangs.includes(stored)) {
       setLangState(stored)
     }
     setMounted(true)

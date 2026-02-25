@@ -55,6 +55,19 @@ const stringValueLabels: Record<string, string> = {
   direct: 'העסקה ישירה',
   contractor: 'קבלן',
   not_sure: 'לא בטוח/ה',
+  // employment_type values
+  full_time: 'משרה מלאה',
+  part_time: 'משרה חלקית',
+  hourly: 'שעתי',
+  freelance: 'פרילנס',
+  other: 'אחר',
+  // termination_type values
+  resigned: 'התפטרות',
+  fired: 'פיטורים',
+  laid_off: 'פיטורי צמצום',
+  contract_end: 'סיום חוזה',
+  still_employed: 'עדיין מועסק/ת',
+  mutual: 'הסכמה הדדית',
 }
 
 function InfoRow({ label, value }: { label: string; value?: string | number | boolean | null }) {

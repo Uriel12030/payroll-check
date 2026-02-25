@@ -12,10 +12,10 @@ export interface Lead {
   employer_name: string
   role_title: string
   employment_type: string
-  start_date: string
+  start_date: string | null
   end_date: string | null
   still_employed: boolean
-  avg_monthly_salary: number
+  avg_monthly_salary: number | null
   paid_overtime: string
   overtime_hours_estimate: string | null
   attendance_tracking: string

@@ -256,12 +256,43 @@ export async function generateEmailDraft(params: {
         .eq('status', 'proposed')
     }
 
+    // 9b. If no conversationId, create a new conversation so the draft can be linked
+    // (case_ai_drafts.conversation_id is NOT NULL in the DB schema)
+    let resolvedConversationId = conversationId ?? null
+    if (!resolvedConversationId) {
+      const { data: newConv, error: convError } = await serviceClient
+        .from('email_conversations')
+        .insert({
+          customer_id: leadId,
+          subject: aiOutput.suggested_subject,
+          status: 'open',
+        })
+        .select('id')
+        .single()
+
+      if (convError || !newConv) {
+        console.error('[emailDrafter] Failed to create conversation for workbench draft', { leadId, error: convError })
+        // Return draft content without DB persistence — UI will still show it but cannot send
+        logUsageWarnings(rateLimit.usage, leadId)
+        return {
+          success: true,
+          draftId: undefined,
+          actionId: action?.id ?? undefined,
+          draft: aiOutput,
+          error: 'draft_save_failed',
+        }
+      }
+
+      resolvedConversationId = newConv.id
+      console.log('[emailDrafter] Created new conversation for workbench draft', { leadId, conversationId: resolvedConversationId })
+    }
+
     // 10. Insert new draft
-    const { data: draft } = await serviceClient
+    const { data: draft, error: draftInsertError } = await serviceClient
       .from('case_ai_drafts')
       .insert({
         lead_id: leadId,
-        conversation_id: conversationId ?? null,
+        conversation_id: resolvedConversationId,
         suggested_subject: aiOutput.suggested_subject,
         suggested_text: aiOutput.suggested_text,
         suggested_html: aiOutput.suggested_html,
@@ -282,6 +313,20 @@ export async function generateEmailDraft(params: {
       })
       .select('id')
       .single()
+
+    if (draftInsertError) {
+      console.error('[emailDrafter] Failed to insert draft into DB', { leadId, error: draftInsertError })
+      // Still return the draft content even if DB insert failed
+      // The UI will show the draft but warn that it cannot be sent via the normal flow
+      logUsageWarnings(rateLimit.usage, leadId)
+      return {
+        success: true,
+        draftId: undefined,
+        actionId: action?.id ?? undefined,
+        draft: aiOutput,
+        error: 'draft_save_failed',
+      }
+    }
 
     // 11. Log usage warnings
     logUsageWarnings(rateLimit.usage, leadId)

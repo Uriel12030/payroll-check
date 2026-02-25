@@ -149,25 +149,23 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
         />
         <select
           name="status"
-          defaultValue={searchParams.status ?? 'all'}
           className="form-input bg-white max-w-[160px]"
         >
-          <option value="all">כל הסטטוסים</option>
-          <option value="new">חדש</option>
-          <option value="reviewing">בבדיקה</option>
-          <option value="accepted">מקובל</option>
-          <option value="rejected">נדחה</option>
+          <option value="all" selected={(searchParams.status ?? 'all') === 'all'}>כל הסטטוסים</option>
+          <option value="new" selected={searchParams.status === 'new'}>חדש</option>
+          <option value="reviewing" selected={searchParams.status === 'reviewing'}>בבדיקה</option>
+          <option value="accepted" selected={searchParams.status === 'accepted'}>מקובל</option>
+          <option value="rejected" selected={searchParams.status === 'rejected'}>נדחה</option>
         </select>
         <select
           name="lang"
-          defaultValue={searchParams.lang ?? 'all'}
           className="form-input bg-white max-w-[160px]"
         >
-          <option value="all">כל השפות</option>
-          <option value="he">עברית</option>
-          <option value="en">English</option>
-          <option value="ru">Русский</option>
-          <option value="am">አማርኛ</option>
+          <option value="all" selected={(searchParams.lang ?? 'all') === 'all'}>כל השפות</option>
+          <option value="he" selected={searchParams.lang === 'he'}>עברית</option>
+          <option value="en" selected={searchParams.lang === 'en'}>English</option>
+          <option value="ru" selected={searchParams.lang === 'ru'}>Русский</option>
+          <option value="am" selected={searchParams.lang === 'am'}>አማርኛ</option>
         </select>
         <button type="submit" className="btn-primary py-2 px-5 text-sm">
           חפש

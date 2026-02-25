@@ -45,9 +45,25 @@ const statusConfig: Record<LeadStatus, { label: string; color: string; icon: Rea
   rejected: { label: 'נדחה', color: 'bg-red-100 text-red-700 border-red-200', icon: XCircle },
 }
 
+const stringValueLabels: Record<string, string> = {
+  yes: 'כן',
+  no: 'לא',
+  unknown: 'לא ידוע',
+  partial: 'חלקי',
+  full: 'מלא',
+  none: 'אין',
+  direct: 'העסקה ישירה',
+  contractor: 'קבלן',
+  not_sure: 'לא בטוח/ה',
+}
+
 function InfoRow({ label, value }: { label: string; value?: string | number | boolean | null }) {
   if (value === undefined || value === null || value === '') return null
-  const display = typeof value === 'boolean' ? (value ? 'כן' : 'לא') : String(value)
+  const display = typeof value === 'boolean'
+    ? (value ? 'כן' : 'לא')
+    : (typeof value === 'string' && stringValueLabels[value.toLowerCase()]
+        ? stringValueLabels[value.toLowerCase()]
+        : String(value))
   return (
     <div className="flex gap-2 py-2.5 border-b border-gray-100 last:border-0">
       <span className="text-gray-500 text-sm min-w-[180px] flex-shrink-0">{label}</span>

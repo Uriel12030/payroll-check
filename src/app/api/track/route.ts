@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient()
 
-    await supabase.from('analytics_events').insert({
+    const { error: dbError } = await supabase.from('analytics_events').insert({
       event: String(event),
       lang: String(lang || 'he').slice(0, 5),
       source: String(source || 'direct').slice(0, 50),
@@ -32,6 +32,11 @@ export async function POST(request: NextRequest) {
       device: device === 'mobile' ? 'mobile' : 'desktop',
       path: String(path || '/').slice(0, 200),
     })
+
+    if (dbError) {
+      console.error('[track] Supabase error:', dbError.message)
+      return NextResponse.json({ ok: false, error: dbError.message }, { status: 500 })
+    }
 
     return NextResponse.json({ ok: true })
   } catch (error) {

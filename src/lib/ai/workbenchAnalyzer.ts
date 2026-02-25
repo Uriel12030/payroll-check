@@ -208,10 +208,11 @@ export async function analyzeForWorkbench(params: {
       status: 'pending' as const,
     }))
 
-    // 10. Update case_ai_state with workbench fields
+    // 10. Upsert case_ai_state with workbench fields (handles both new and existing rows)
     await serviceClient
       .from('case_ai_state')
-      .update({
+      .upsert({
+        lead_id: leadId,
         summary: aiOutput.case_summary,
         known_facts: updatedFacts,
         missing_fields: updatedMissing,
@@ -234,8 +235,7 @@ export async function analyzeForWorkbench(params: {
         strength_flags: aiOutput.strength_flags,
         documents_requested: documentsRequested,
         updated_at: new Date().toISOString(),
-      })
-      .eq('lead_id', leadId)
+      }, { onConflict: 'lead_id' })
 
     // 11. Log usage warnings
     logUsageWarnings(rateLimit.usage, leadId)

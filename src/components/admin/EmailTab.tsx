@@ -201,6 +201,7 @@ export function EmailTab({ leadId, leadEmail }: Props) {
   if (showCompose) {
     return (
       <ComposeEmail
+        leadId={leadId}
         leadEmail={leadEmail}
         subject={composeSubject}
         body={composeBody}

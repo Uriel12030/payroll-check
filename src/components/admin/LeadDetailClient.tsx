@@ -224,10 +224,10 @@ export function LeadDetailClient({ lead, files, initialTab = 'details' }: Props)
             <InfoRow label="מעסיק" value={lead.employer_name} />
             <InfoRow label="תפקיד" value={lead.role_title} />
             <InfoRow label="סוג העסקה" value={lead.employment_type} />
-            <InfoRow label="תחילת עבודה" value={lead.start_date} />
-            <InfoRow label="סיום עבודה" value={lead.end_date} />
+            <InfoRow label="תחילת עבודה" value={lead.start_date ? formatDate(lead.start_date) : null} />
+            <InfoRow label="סיום עבודה" value={lead.end_date ? formatDate(lead.end_date) : null} />
             <InfoRow label="עדיין מועסק" value={lead.still_employed} />
-            <InfoRow label="שכר ממוצע" value={`₪${Number(lead.avg_monthly_salary).toLocaleString()}`} />
+            <InfoRow label="שכר ממוצע" value={lead.avg_monthly_salary && Number(lead.avg_monthly_salary) > 0 ? `₪${Number(lead.avg_monthly_salary).toLocaleString()}` : null} />
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -251,7 +251,7 @@ export function LeadDetailClient({ lead, files, initialTab = 'details' }: Props)
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="font-semibold text-gray-900 mb-4">סיום עבודה</h2>
             <InfoRow label="אופן סיום" value={lead.termination_type} />
-            <InfoRow label="תאריך סיום" value={lead.termination_date} />
+            <InfoRow label="תאריך סיום" value={lead.termination_date ? formatDate(lead.termination_date) : null} />
             <InfoRow label="סיבת הפנייה" value={lead.reason_for_check} />
           </div>
 

@@ -20,6 +20,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false }, { status: 400 })
     }
 
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      ''
+
     const supabase = createServiceClient()
 
     const { error: dbError } = await supabase.from('analytics_events').insert({
@@ -31,6 +36,7 @@ export async function POST(request: NextRequest) {
       referrer: String(referrer || '').slice(0, 500),
       device: device === 'mobile' ? 'mobile' : 'desktop',
       path: String(path || '/').slice(0, 200),
+      ip,
     })
 
     if (dbError) {

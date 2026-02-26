@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/lib/auth/isAdmin'
 import { generateEmailDraft } from '@/lib/ai/emailDrafter'
 
+export const maxDuration = 60
+
 const draftSchema = z.object({
   leadId: z.string().uuid(),
   conversationId: z.string().uuid().optional(),

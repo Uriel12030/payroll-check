@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/lib/auth/isAdmin'
 import { analyzeForWorkbench } from '@/lib/ai/workbenchAnalyzer'
 
+export const maxDuration = 60
+
 const analyzeSchema = z.object({
   leadId: z.string().uuid(),
 })

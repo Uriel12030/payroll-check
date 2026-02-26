@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { QuickStart, QuickStartData } from '@/components/intake/QuickStart'
+import { PreliminaryResult } from '@/components/intake/PreliminaryResult'
 import { BasicContact } from '@/components/intake/BasicContact'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -11,11 +12,15 @@ import { t } from '@/lib/i18n/translations'
 export default function IntakePage() {
   const { lang } = useLanguage()
   const router = useRouter()
-  const [phase, setPhase] = useState<'quick' | 'contact'>('quick')
+  const [phase, setPhase] = useState<'quick' | 'result' | 'contact'>('quick')
   const [quickData, setQuickData] = useState<QuickStartData | null>(null)
 
   const handleQuickComplete = (data: QuickStartData) => {
     setQuickData(data)
+    setPhase('result')
+  }
+
+  const handleResultContinue = () => {
     setPhase('contact')
   }
 
@@ -41,6 +46,9 @@ export default function IntakePage() {
         <div className="card">
           {phase === 'quick' && (
             <QuickStart onComplete={handleQuickComplete} onBack={handleQuickBack} />
+          )}
+          {phase === 'result' && (
+            <PreliminaryResult onContinue={handleResultContinue} />
           )}
           {phase === 'contact' && quickData && (
             <BasicContact quickData={quickData} />

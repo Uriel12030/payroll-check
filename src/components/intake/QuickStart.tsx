@@ -2,14 +2,14 @@
 
 import { useState, useRef } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { t, LANGUAGES, Language } from '@/lib/i18n/translations'
+import { t } from '@/lib/i18n/translations'
 import { trackEvent } from '@/lib/analytics'
 
 export interface QuickStartData {
   years_with_employer_bucket: string
   employment_type: string
   main_issues: string[]
-  preferred_language: Language
+  preferred_language: string
 }
 
 interface QuickStartProps {
@@ -17,15 +17,16 @@ interface QuickStartProps {
   onBack: () => void
 }
 
+const TOTAL_Q = 3
+const PROGRESS = [25, 50, 75]
+
 export function QuickStart({ onComplete, onBack }: QuickStartProps) {
   const { lang } = useLanguage()
   const [qStep, setQStep] = useState(1)
-  const TOTAL_Q = 4
 
   const [yearsBucket, setYearsBucket] = useState<string>('')
   const [empType, setEmpType] = useState<string>('')
   const [issues, setIssues] = useState<string[]>([])
-  const [emailLang, setEmailLang] = useState<Language>(lang)
   const formStartFired = useRef(false)
 
   const fireFormStart = () => {
@@ -39,7 +40,6 @@ export function QuickStart({ onComplete, onBack }: QuickStartProps) {
     if (qStep === 1) return !!yearsBucket
     if (qStep === 2) return !!empType
     if (qStep === 3) return issues.length > 0
-    if (qStep === 4) return !!emailLang
     return false
   }
 
@@ -51,7 +51,7 @@ export function QuickStart({ onComplete, onBack }: QuickStartProps) {
         years_with_employer_bucket: yearsBucket,
         employment_type: empType,
         main_issues: issues,
-        preferred_language: emailLang,
+        preferred_language: lang,
       })
     }
   }
@@ -94,6 +94,8 @@ export function QuickStart({ onComplete, onBack }: QuickStartProps) {
     </button>
   )
 
+  const pct = PROGRESS[qStep - 1] || 25
+
   return (
     <div className="space-y-6">
       <div>
@@ -103,16 +105,20 @@ export function QuickStart({ onComplete, onBack }: QuickStartProps) {
         </p>
       </div>
 
-      {/* Progress dots */}
-      <div className="flex gap-2 justify-center">
-        {Array.from({ length: TOTAL_Q }).map((_, i) => (
+      {/* Progress bar with percentage */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-gray-400">
+            {t('qs.step_of', lang, { current: String(qStep), total: String(TOTAL_Q) })}
+          </span>
+          <span className="text-xs font-medium text-blue-600">{pct}%</span>
+        </div>
+        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
           <div
-            key={i}
-            className={`h-2 rounded-full transition-all ${
-              i + 1 <= qStep ? 'bg-blue-600 w-8' : 'bg-gray-200 w-8'
-            }`}
+            className="h-full bg-blue-600 rounded-full transition-all duration-300"
+            style={{ width: `${pct}%` }}
           />
-        ))}
+        </div>
       </div>
 
       {/* Q1: Years */}
@@ -174,22 +180,6 @@ export function QuickStart({ onComplete, onBack }: QuickStartProps) {
               onClick={() => toggleIssue(opt.key)}
             >
               {opt.label}
-            </OptionButton>
-          ))}
-        </div>
-      )}
-
-      {/* Q4: Preferred email language */}
-      {qStep === 4 && (
-        <div className="space-y-3">
-          <h3 className="font-medium text-gray-900">{t('qs.q4_title', lang)}</h3>
-          {LANGUAGES.map((l) => (
-            <OptionButton
-              key={l.code}
-              selected={emailLang === l.code}
-              onClick={() => setEmailLang(l.code)}
-            >
-              {l.label}
             </OptionButton>
           ))}
         </div>

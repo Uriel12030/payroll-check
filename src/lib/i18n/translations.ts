@@ -466,6 +466,75 @@ const translations: Record<string, Record<Language, string>> = {
     am: '0501234567',
   },
 
+  // Preliminary result screen
+  'result.title': {
+    he: 'על בסיס התשובות שלך, ייתכן שמגיע לך פיצוי!',
+    en: 'Based on your answers, you may be entitled to compensation!',
+    ru: 'Судя по вашим ответам, вам может полагаться компенсация!',
+    am: 'በመልሶችዎ መሰረት፣ ካሳ ሊገባዎ ይችላል!',
+  },
+  'result.subtitle': {
+    he: 'עובדים עם פרופיל דומה לשלך קיבלו בממוצע ₪8,400 בחזרה.',
+    en: 'Workers with a similar profile received an average of ₪8,400 back.',
+    ru: 'Работники с похожим профилем получили в среднем ₪8 400 обратно.',
+    am: 'ተመሳሳይ መገለጫ ያላቸው ሰራተኞች በአማካይ ₪8,400 ተመልሶላቸዋል።',
+  },
+  'result.cta': {
+    he: 'השאירו פרטים ועורך דין יבדוק את המקרה שלכם חינם תוך 48 שעות.',
+    en: 'Leave your details and a lawyer will review your case for free within 48 hours.',
+    ru: 'Оставьте данные — адвокат бесплатно проверит ваше дело в течение 48 часов.',
+    am: 'ዝርዝሮችዎን ይተዉ ጠበቃ ጉዳይዎን በ48 ሰዓታት ውስጥ በነፃ ይገመግማል።',
+  },
+  'result.button': {
+    he: 'להשארת פרטים',
+    en: 'Leave my details',
+    ru: 'Оставить данные',
+    am: 'ዝርዝሮቼን ልተው',
+  },
+
+  // Contact form - submit button (green CTA)
+  'contact.submit_cta': {
+    he: 'בדקו לי את הזכויות – חינם',
+    en: 'Check my rights — free',
+    ru: 'Проверить мои права – бесплатно',
+    am: 'መብቶቼን ያረጋግጡ – ነፃ',
+  },
+  // Contact form - email optional label
+  'contact.email_optional': {
+    he: 'אימייל (אופציונלי)',
+    en: 'Email (optional)',
+    ru: 'Электронная почта (необязательно)',
+    am: 'ኢሜይል (አማራጭ)',
+  },
+  // Contact form - phone required
+  'contact.phone_required': {
+    he: 'מספר טלפון חובה',
+    en: 'Phone number is required',
+    ru: 'Номер телефона обязателен',
+    am: 'ስልክ ቁጥር ያስፈልጋል',
+  },
+  // Social proof
+  'contact.trust_line': {
+    he: 'המידע מאובטח ופרטי | ללא עלות | ללא התחייבות',
+    en: 'Your data is secure & private | Free | No obligation',
+    ru: 'Данные защищены и конфиденциальны | Бесплатно | Без обязательств',
+    am: 'መረጃዎ ደህንነቱ የተጠበቀ ነው | ነፃ | ያለ ግዴታ',
+  },
+  'contact.social_proof': {
+    he: 'מעל 500 עובדים כבר בדקו את זכויותיהם',
+    en: 'Over 500 workers have already checked their rights',
+    ru: 'Более 500 работников уже проверили свои права',
+    am: 'ከ500 በላይ ሰራተኞች መብቶቻቸውን አስቀድመው አረጋግጠዋል',
+  },
+
+  // Progress bar
+  'progress.almost_done': {
+    he: 'כמעט סיימנו!',
+    en: 'Almost done!',
+    ru: 'Почти готово!',
+    am: 'ሊያልቅ ነው!',
+  },
+
   // Inline Thank You
   'thankyou.title': {
     he: 'הפרטים התקבלו!',

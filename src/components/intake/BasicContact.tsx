@@ -30,14 +30,24 @@ export function BasicContact({ quickData }: BasicContactProps) {
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {}
+
+    // Phone is now required
+    const cleaned = phone.replace(/[\s\-]/g, '')
+    if (!cleaned) {
+      errs.phone = t('contact.phone_required', lang)
+    } else if (!/^0\d{8,9}$/.test(cleaned)) {
+      errs.phone = t('contact.phone_invalid', lang)
+    }
+
     if (!firstName.trim()) errs.first_name = t('contact.first_name_required', lang)
     if (!lastName.trim()) errs.last_name = t('contact.last_name_required', lang)
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+
+    // Email is now optional — only validate format if provided
+    const trimmedEmail = email.trim()
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       errs.email = t('contact.email_invalid', lang)
-    // Phone is optional – only validate format if provided
-    const cleaned = phone.replace(/[\s\-]/g, '')
-    if (cleaned && !/^0\d{8,9}$/.test(cleaned))
-      errs.phone = t('contact.phone_invalid', lang)
+    }
+
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -106,10 +116,34 @@ export function BasicContact({ quickData }: BasicContactProps) {
   // ── Contact form ──
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Progress bar at 90% */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-gray-400">{t('progress.almost_done', lang)}</span>
+          <span className="text-xs font-medium text-blue-600">90%</span>
+        </div>
+        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-full bg-blue-600 rounded-full transition-all duration-300" style={{ width: '90%' }} />
+        </div>
+      </div>
+
       <div>
         <h2 className="text-xl font-bold text-gray-900 mb-1">{t('contact.title', lang)}</h2>
         <p className="text-sm text-gray-500">{t('contact.subtitle', lang)}</p>
       </div>
+
+      {/* Phone first (required) */}
+      <FieldWrapper label={t('contact.phone', lang)} error={errors.phone} required>
+        <Input
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          type="tel"
+          placeholder={t('contact.placeholder_phone', lang)}
+          error={!!errors.phone}
+          dir="ltr"
+          autoFocus
+        />
+      </FieldWrapper>
 
       <FieldWrapper label={t('contact.first_name', lang)} error={errors.first_name} required>
         <Input
@@ -129,7 +163,8 @@ export function BasicContact({ quickData }: BasicContactProps) {
         />
       </FieldWrapper>
 
-      <FieldWrapper label={t('contact.email', lang)} error={errors.email} required>
+      {/* Email last (optional) */}
+      <FieldWrapper label={t('contact.email_optional', lang)} error={errors.email}>
         <Input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -140,27 +175,31 @@ export function BasicContact({ quickData }: BasicContactProps) {
         />
       </FieldWrapper>
 
-      <FieldWrapper label={t('contact.phone', lang)} error={errors.phone}>
-        <Input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          type="tel"
-          placeholder={t('contact.placeholder_phone', lang)}
-          error={!!errors.phone}
-          dir="ltr"
-        />
-      </FieldWrapper>
-
       {submitError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-600 text-sm">
           {submitError}
         </div>
       )}
 
+      {/* Green submit button */}
       <div className="pt-2">
-        <button type="submit" className="btn-primary w-full" disabled={submitting}>
-          {submitting ? t('contact.submitting', lang) : t('contact.submit', lang)}
+        <button
+          type="submit"
+          className="w-full py-4 rounded-xl text-lg font-bold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-green-500 hover:bg-green-600"
+          disabled={submitting}
+        >
+          {submitting ? t('contact.submitting', lang) : t('contact.submit_cta', lang)}
         </button>
+      </div>
+
+      {/* Social proof */}
+      <div className="text-center space-y-1 pt-1">
+        <p className="text-xs text-gray-400">
+          🔒 {t('contact.trust_line', lang)}
+        </p>
+        <p className="text-xs text-gray-500 font-medium">
+          👥 {t('contact.social_proof', lang)}
+        </p>
       </div>
     </form>
   )
